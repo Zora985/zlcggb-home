@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Clock, Tag, ChevronRight } from 'lucide-react';
+import { Monitor, Atom, Server, ChevronRight, Clock, BookOpen } from 'lucide-react';
 
 export default function LabPage() {
   const [isVisible, setIsVisible] = useState(false);
@@ -11,188 +11,142 @@ export default function LabPage() {
   const articles = [
     {
       id: 1,
-      title: "为什么机械工程师选择 React？",
-      excerpt: "你以为我在写代码，其实我在拼乐高。深度解析 SolidWorks 的\"零件装配"思想与 React "组件复用\"思想的惊人相似性。",
-      tags: ["React", "工程思维", "心得"],
-      readTime: "8 分钟",
-      date: "2025-01-15",
-      featured: true,
-      image: "https://images.pexels.com/photos/574069/pexels-photo-574069.jpeg"
+      title: "如何设计第一个网站",
+      icon: <Monitor className="text-apple-blue" size={32} />,
+      excerpt: "从零开始搭建个人网站的完整指南，包括域名注册、服务器配置、HTML/CSS 基础，以及部署上线的全流程。",
+      readTime: "15 分钟",
+      category: "入门教程",
+      gradient: "from-blue-50 to-cyan-50"
     },
     {
       id: 2,
-      title: "如何设计你的第一个网站（给非科班同学的指南）",
-      excerpt: "复盘我在 2025 年 2 月的踩坑经历。不谈复杂的算法，只谈如何把一个想法变成可以点击的页面。",
-      tags: ["WebDesign", "入门"],
+      title: "为什么选择 React",
+      icon: <Atom className="text-cyan-500" size={32} />,
+      excerpt: "组件化架构的优势、虚拟 DOM 的工作原理、以及 React 生态系统的强大之处。从机械工程师的视角理解前端框架。",
       readTime: "12 分钟",
-      date: "2025-01-10",
-      featured: false,
-      image: "https://images.pexels.com/photos/196644/pexels-photo-196644.jpeg"
+      category: "技术选型",
+      gradient: "from-cyan-50 to-teal-50"
     },
     {
       id: 3,
-      title: "全栈第一步：如何拥有自己的服务器和域名",
-      excerpt: "从阿里云/腾讯云购买，到 Nginx 配置，再到 DNS 解析。手把手教你点亮互联网上的那一盏灯。",
-      tags: ["DevOps", "Server", "部署"],
-      readTime: "15 分钟",
-      date: "2025-01-05",
-      featured: false,
-      image: "https://images.pexels.com/photos/1181298/pexels-photo-1181298.jpeg"
-    },
-    {
-      id: 4,
-      title: "从CAD建模到React组件：设计模式的迁移",
-      excerpt: "探索机械设计中的参数化建模思维如何帮助我更好地理解React的props和state管理。",
-      tags: ["React", "设计模式", "CAD"],
-      readTime: "10 分钟",
-      date: "2024-12-28",
-      featured: false,
-      image: "https://images.pexels.com/photos/159275/macro-cogwheel-gear-mechanism-159275.jpeg"
+      title: "如何拥有自己的服务器和域名",
+      icon: <Server className="text-purple-500" size={32} />,
+      excerpt: "云服务器选购指南、域名注册与解析、SSL 证书配置、Nginx 部署实战，让你的网站正式上线。",
+      readTime: "20 分钟",
+      category: "运维部署",
+      gradient: "from-purple-50 to-pink-50"
     }
   ];
 
-  const ArticleCard = ({ article, featured = false }: { article: any; featured?: boolean }) => (
-    <article className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer ${
-      featured ? 'md:col-span-2' : ''
-    }`}>
-      <div className="relative overflow-hidden">
-        <img
-          src={article.image}
-          alt={article.title}
-          className={`w-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-            featured ? 'h-64' : 'h-48'
-          }`}
-        />
-        <div className="absolute top-4 left-4">
-          <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-            {featured ? '精选' : '教程'}
-          </span>
-        </div>
-      </div>
-      <div className="p-6">
-        <div className="flex items-center text-sm text-gray-500 mb-3">
-          <Clock size={16} className="mr-2" />
-          <span>{article.readTime}</span>
-          <span className="mx-2">•</span>
-          <span>{article.date}</span>
-        </div>
-        <h2 className={`font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors ${
-          featured ? 'text-2xl' : 'text-xl'
-        }`}>
-          {article.title}
-        </h2>
-        <p className="text-gray-600 mb-4 leading-relaxed">
-          {article.excerpt}
-        </p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {article.tags.map((tag: string, index: number) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full"
-            >
-              <Tag size={12} className="mr-1" />
-              {tag}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center text-blue-600 font-semibold group-hover:text-blue-700">
-          阅读全文
-          <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-        </div>
-      </div>
-    </article>
-  );
+  const upcomingTopics = [
+    "TypeScript 入门：为什么类型很重要",
+    "从机械图纸到代码架构：思维的迁移",
+    "Tailwind CSS：快速构建现代 UI",
+    "Git 版本控制：像管理工程图纸一样管理代码"
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-20">
-      <div className="max-w-7xl mx-auto px-6">
+    <div className="min-h-screen bg-apple-gray-100 py-24">
+      <div className="max-w-[980px] mx-auto px-6">
         {/* Header */}
-        <div className={`text-center mb-12 transition-all duration-1000 ${
+        <div className={`text-center mb-16 transition-all duration-1000 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <p className="text-apple-gray-500 text-sm font-medium tracking-wide mb-4">
             技术实验室
+          </p>
+          <h1 className="text-5xl md:text-6xl font-semibold text-apple-gray-600 tracking-tight mb-4">
+            教程与文章
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-2">
-            费曼学习法：Share to Learn
-          </p>
-          <p className="text-gray-500">
-            展示技术深度和沟通能力
+          <p className="text-xl text-apple-gray-500 max-w-2xl mx-auto">
+            分享我的学习笔记和技术心得，帮助更多人入门全栈开发
           </p>
         </div>
 
-        {/* Featured Article */}
-        <div className={`mb-12 transition-all duration-1000 delay-300 ${
+        {/* Featured Articles */}
+        <div className={`space-y-6 mb-16 transition-all duration-1000 delay-100 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-            <BookOpen className="mr-3 text-blue-600" />
-            精选文章
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <ArticleCard article={articles[0]} featured={true} />
+          {articles.map((article, index) => (
+            <article
+              key={article.id}
+              className="apple-card overflow-hidden group cursor-pointer"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="flex flex-col md:flex-row">
+                <div className={`md:w-48 p-8 bg-gradient-to-br ${article.gradient} flex items-center justify-center`}>
+                  <div className="w-20 h-20 bg-white/80 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500 ease-apple">
+                    {article.icon}
+                  </div>
+                </div>
+                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="text-xs font-medium text-apple-blue bg-apple-blue/10 px-3 py-1 rounded-full">
+                        {article.category}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-apple-gray-400">
+                        <Clock size={12} />
+                        {article.readTime}
+                      </span>
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-semibold text-apple-gray-600 mb-3 group-hover:text-apple-blue transition-colors duration-300">
+                      {article.title}
+                    </h2>
+                    <p className="text-apple-gray-500 leading-relaxed mb-4">
+                      {article.excerpt}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center text-apple-blue text-sm font-medium group-hover:gap-2 transition-all duration-300">
+                      阅读全文
+                      <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform duration-300" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Upcoming Topics */}
+        <div className={`transition-all duration-1000 delay-300 ease-apple ${
+          isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
+        }`}>
+          <div className="apple-card p-8 md:p-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-apple-gray-100 rounded-xl flex items-center justify-center">
+                <BookOpen className="text-apple-gray-500" size={20} />
+              </div>
+              <h3 className="text-xl font-semibold text-apple-gray-600">即将发布</h3>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              {upcomingTopics.map((topic, index) => (
+                <div key={index} className="flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl hover:bg-apple-gray-100 transition-colors duration-300">
+                  <div className="w-2 h-2 bg-apple-blue rounded-full" />
+                  <span className="text-apple-gray-600 text-sm">{topic}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-apple-gray-400 text-sm mt-6 text-center">更多文章正在撰写中，敬请期待...</p>
           </div>
         </div>
 
-        {/* Articles Grid */}
-        <div className={`mb-12 transition-all duration-1000 delay-500 ${
+        {/* Newsletter CTA */}
+        <div className={`mt-12 transition-all duration-1000 delay-400 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-            <BookOpen className="mr-3 text-teal-600" />
-            技术教程
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {articles.slice(1).map((article, index) => (
-              <div
-                key={article.id}
-                className={`transition-all duration-500 delay-${(index + 1) * 100}`}
-              >
-                <ArticleCard article={article} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Interactive Playground Section */}
-        <div className={`bg-white rounded-xl shadow-lg p-8 transition-all duration-1000 delay-700 ${
-          isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
-        }`}>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            互动演示：代码可视化
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">CSS 3D 立方体</h3>
-              <div className="bg-gray-900 p-4 rounded-lg font-mono text-sm text-green-400 overflow-hidden">
-                <div className="animate-pulse">
-                  <div>.cube &#123;</div>
-                  <div className="ml-4">transform-style: preserve-3d;</div>
-                  <div className="ml-4">animation: rotate 4s infinite;</div>
-                  <div>&#125;</div>
-                  <br />
-                  <div>@keyframes rotate &#123;</div>
-                  <div className="ml-4">from &#123; transform: rotateY(0); &#125;</div>
-                  <div className="ml-4">to &#123; transform: rotateY(360deg); &#125;</div>
-                  <div>&#125;</div>
-                </div>
-              </div>
+          <div className="apple-card p-8 md:p-12 text-center bg-gradient-to-br from-apple-blue/5 to-purple-500/5">
+            <h3 className="text-2xl font-semibold text-apple-gray-600 mb-3">订阅更新</h3>
+            <p className="text-apple-gray-500 mb-6 max-w-md mx-auto">第一时间获取新文章通知，不错过任何学习机会</p>
+            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                placeholder="your@email.com"
+                className="flex-1 px-4 py-3 rounded-xl border border-apple-gray-200 bg-white text-apple-gray-600 placeholder-apple-gray-400 focus:outline-none focus:ring-2 focus:ring-apple-blue/20 focus:border-apple-blue transition-all duration-300"
+              />
+              <button className="apple-button apple-button-primary whitespace-nowrap">订阅</button>
             </div>
-            <div className="flex justify-center">
-              <div className="perspective-1000">
-                <div className="w-32 h-32 relative transform-gpu animate-spin" style={{ animationDuration: '4s' }}>
-                  <div className="absolute inset-0 bg-blue-500 opacity-80 border border-blue-600"></div>
-                  <div className="absolute inset-0 bg-blue-600 opacity-80 border border-blue-700 transform rotateY-90 origin-right"></div>
-                  <div className="absolute inset-0 bg-blue-700 opacity-80 border border-blue-800 transform rotateX-90 origin-bottom"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-blue-800">
-              <span className="font-semibold">设计理念：</span>
-              "所见即所得" - 将抽象的代码逻辑通过视觉效果直观展示，正如机械设计中的三维建模。
-            </p>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Heart, Plane, Code, Rocket } from 'lucide-react';
+import { Settings, Code, Rocket, Monitor, Award, Microscope, Car } from 'lucide-react';
 
 export default function TimelinePage() {
   const [isVisible, setIsVisible] = useState(false);
@@ -10,123 +10,194 @@ export default function TimelinePage() {
 
   const timelineEvents = [
     {
-      year: "2022",
-      title: "机械启蒙",
-      icon: <Settings className="text-blue-600" size={24} />,
-      description: "参加机械设计比赛。学会了如何将脑中的想法落实到图纸上，理解了"公差"与"标准"的重要性。",
-      color: "blue"
+      year: "2022.01 - 08",
+      title: "机创大赛 - 仿生机械蝎子",
+      icon: <Award className="text-white" size={20} />,
+      description: "参加第十届全国大学生机械创新设计大赛，设计仿生机械蝎子。负责误差分析与控制设计，完成整机制造，获全国二等奖及发明专利。",
+      color: "bg-amber-500",
+      highlight: "全国二等奖"
     },
     {
-      year: "2023",
-      title: "责任与设计",
-      icon: <Heart className="text-red-500" size={24} />,
-      description: "新冠医疗设备设计。意识到工程设计必须服务于人的真实痛点（User-Centered Design 的萌芽）。",
-      color: "red"
+      year: "2022.10 - 2023.04",
+      title: "深圳科技专项 - 新冠检测设备",
+      icon: <Microscope className="text-white" size={20} />,
+      description: "参与深圳科技专项项目，设计污水中新冠病毒高效检测设备。实现采集、提取、检测一体化自动化流程。",
+      color: "bg-blue-500",
+      highlight: "科技专项"
     },
     {
-      year: "2024",
-      title: "复杂度的挑战",
-      icon: <Plane className="text-purple-600" size={24} />,
-      description: "无人驾驶-无人机平台设计。在处理复杂的机电配合时，开始接触控制逻辑，意识到软件迭代的高效性。",
-      color: "purple"
+      year: "2024.04",
+      title: "优秀毕设 - 无人车机一体化系统",
+      icon: <Car className="text-white" size={20} />,
+      description: "毕业设计项目，设计车机一体化系统。创新点包括三维语义点云预测、B样条避障规划、磁力辅助定位降落。",
+      color: "bg-indigo-500",
+      highlight: "优秀毕设"
+    },
+    {
+      year: "2024 下半年",
+      title: "开始自学编程",
+      icon: <Monitor className="text-white" size={20} />,
+      description: "从机械专业转向自学编程，发现代码世界与机械设计的思维共通之处。系统学习 HTML/CSS/JavaScript/React。",
+      color: "bg-gradient-to-r from-indigo-500 to-apple-blue",
+      highlight: "转型起点"
     },
     {
       year: "2025.02",
-      title: "Hello World (转折点)",
-      icon: <Code className="text-green-600" size={24} />,
-      description: "开发自己的第一个网站。发现代码构建世界的速度远超机械加工，决定投身软件开发。自学 HTML/CSS/JS。",
-      color: "green"
+      title: "Unilumin 官网会员中心上线",
+      icon: <Code className="text-white" size={20} />,
+      description: "负责开发企业级会员服务平台，实现产品选择、全球展厅预约、AI智能问答、课程教学等功能。",
+      color: "bg-apple-blue",
+      highlight: "首个商业项目"
     },
     {
-      year: "2025.09",
-      title: "职业开发者",
-      icon: <Rocket className="text-orange-500" size={24} />,
-      description: "成功转行公司系统开发。正式入职，将机械设计的"模块化思维"无缝迁移至 React 组件开发中。",
-      color: "orange"
+      year: "2025.06",
+      title: "Unilumin Smart 智能工具平台",
+      icon: <Rocket className="text-white" size={20} />,
+      description: "上线LED智能配置系统，实现走线图自动生成、一键报价等功能，让工程应用高效落地。",
+      color: "bg-gradient-to-r from-apple-blue to-purple-500",
+      highlight: "持续进化"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-20">
-      <div className="max-w-4xl mx-auto px-6">
+    <div className="min-h-screen bg-apple-gray-100 py-24">
+      <div className="max-w-[980px] mx-auto px-6">
         {/* Header */}
-        <div className={`text-center mb-16 transition-all duration-1000 ${
+        <div className={`text-center mb-20 transition-all duration-1000 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            破茧成蝶
+          <p className="text-apple-gray-500 text-sm font-medium tracking-wide mb-4">
+            进化之路
+          </p>
+          <h1 className="text-5xl md:text-6xl font-semibold text-apple-gray-600 tracking-tight mb-4">
+            个人成长故事
           </h1>
-          <p className="text-2xl font-mono text-blue-600 mb-8">
-            "系统是不变的，改变的只是工具。"
+          <p className="text-xl text-apple-gray-500 max-w-2xl mx-auto">
+            从机械设计到自学编程，再到成为全栈工程师的路径
           </p>
         </div>
 
-        {/* Timeline */}
-        <div className="relative">
+        {/* Desktop Timeline */}
+        <div className={`hidden md:block relative transition-all duration-1000 delay-200 ease-apple ${
+          isVisible ? 'opacity-100' : 'opacity-0'
+        }`}>
           {/* Center Line */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-gradient-to-b from-blue-300 to-orange-300 rounded-full"></div>
+          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-amber-400 via-apple-blue to-purple-500 transform -translate-x-1/2" />
 
-          {timelineEvents.map((event, index) => (
-            <div
-              key={index}
-              className={`relative flex items-center mb-16 transition-all duration-1000 delay-${index * 200} ${
-                isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
-              } ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
-            >
-              {/* Content Card */}
-              <div className={`w-5/12 ${index % 2 === 0 ? 'pr-8' : 'pl-8'}`}>
-                <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                  <div className="flex items-center mb-4">
-                    <div className={`p-2 rounded-full bg-${event.color}-100 mr-3`}>
-                      {event.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
-                      <span className="text-sm font-mono text-gray-500">{event.year}</span>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 leading-relaxed">{event.description}</p>
-                </div>
-              </div>
-
-              {/* Center Circle */}
-              <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-4 border-blue-600 rounded-full shadow-lg z-10"></div>
-
-              {/* Empty space for opposite side */}
-              <div className="w-5/12"></div>
-            </div>
-          ))}
-
-          {/* Mobile Timeline */}
-          <div className="md:hidden">
+          {/* Timeline Items */}
+          <div className="space-y-20">
             {timelineEvents.map((event, index) => (
               <div
-                key={`mobile-${index}`}
-                className={`relative flex items-start mb-8 pl-16 transition-all duration-1000 delay-${index * 200} ${
-                  isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
+                key={index}
+                className={`relative flex items-center ${
+                  index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
                 }`}
+                style={{ animationDelay: `${index * 150}ms` }}
               >
-                {/* Mobile Timeline Line */}
-                <div className="absolute left-6 w-1 h-full bg-gradient-to-b from-blue-300 to-orange-300 rounded-full"></div>
-                
-                {/* Mobile Circle */}
-                <div className="absolute left-4 w-4 h-4 bg-white border-4 border-blue-600 rounded-full shadow-lg"></div>
-
-                {/* Mobile Content */}
-                <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow w-full">
-                  <div className="flex items-center mb-4">
-                    <div className={`p-2 rounded-full bg-${event.color}-100 mr-3`}>
-                      {event.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{event.title}</h3>
-                      <span className="text-sm font-mono text-gray-500">{event.year}</span>
-                    </div>
+                {/* Content Card */}
+                <div className={`w-5/12 ${index % 2 === 0 ? 'pr-16 text-right' : 'pl-16 text-left'}`}>
+                  <div className="apple-card p-6 hover:shadow-apple-lg transition-all duration-500 group">
+                    {/* Highlight Badge */}
+                    <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full mb-3 ${
+                      index < 3 
+                        ? 'bg-amber-100 text-amber-700' 
+                        : 'bg-apple-blue/10 text-apple-blue'
+                    }`}>
+                      {event.highlight}
+                    </span>
+                    
+                    <span className="text-sm font-mono text-apple-gray-400 block mb-2">
+                      {event.year}
+                    </span>
+                    <h3 className="text-xl font-semibold text-apple-gray-600 mb-3 group-hover:text-apple-blue transition-colors">
+                      {event.title}
+                    </h3>
+                    <p className="text-apple-gray-500 leading-relaxed text-sm">
+                      {event.description}
+                    </p>
                   </div>
-                  <p className="text-gray-600 leading-relaxed">{event.description}</p>
                 </div>
+
+                {/* Center Icon */}
+                <div className="absolute left-1/2 transform -translate-x-1/2 z-10">
+                  <div className={`w-14 h-14 ${event.color} rounded-full flex items-center justify-center shadow-lg ring-4 ring-apple-gray-100 hover:scale-110 transition-transform duration-300`}>
+                    {event.icon}
+                  </div>
+                </div>
+
+                {/* Empty Space */}
+                <div className="w-5/12" />
               </div>
             ))}
+          </div>
+
+          {/* End Marker */}
+          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-12">
+            <div className="w-4 h-4 bg-purple-500 rounded-full ring-4 ring-apple-gray-100 animate-pulse" />
+          </div>
+        </div>
+
+        {/* Mobile Timeline */}
+        <div className="md:hidden">
+          <div className="relative pl-8">
+            {/* Left Line */}
+            <div className="absolute left-3 top-0 bottom-0 w-px bg-gradient-to-b from-amber-400 via-apple-blue to-purple-500" />
+
+            {/* Timeline Items */}
+            <div className="space-y-8">
+              {timelineEvents.map((event, index) => (
+                <div
+                  key={index}
+                  className={`relative transition-all duration-500 ease-apple ${
+                    isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
+                  }`}
+                  style={{ transitionDelay: `${index * 100}ms` }}
+                >
+                  {/* Icon */}
+                  <div className="absolute -left-5 top-0">
+                    <div className={`w-10 h-10 ${event.color} rounded-full flex items-center justify-center shadow-lg ring-4 ring-apple-gray-100`}>
+                      {event.icon}
+                    </div>
+                  </div>
+
+                  {/* Content Card */}
+                  <div className="apple-card p-5 ml-4">
+                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
+                      index < 3 
+                        ? 'bg-amber-100 text-amber-700' 
+                        : 'bg-apple-blue/10 text-apple-blue'
+                    }`}>
+                      {event.highlight}
+                    </span>
+                    <span className="text-sm font-mono text-apple-gray-400 block mb-1">
+                      {event.year}
+                    </span>
+                    <h3 className="text-lg font-semibold text-apple-gray-600 mb-2">
+                      {event.title}
+                    </h3>
+                    <p className="text-apple-gray-500 text-sm leading-relaxed">
+                      {event.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Summary Card */}
+        <div className={`mt-24 transition-all duration-1000 delay-500 ease-apple ${
+          isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
+        }`}>
+          <div className="apple-card p-8 md:p-12 text-center bg-gradient-to-br from-white to-apple-gray-50">
+            <h3 className="text-2xl md:text-3xl font-semibold text-apple-gray-600 mb-4">
+              工程思维，永不改变
+            </h3>
+            <p className="text-apple-gray-500 max-w-2xl mx-auto leading-relaxed">
+              从仿生机械蝎子到无人车机一体化系统，再到企业级 Web 应用——
+              变的是工具和载体，不变的是解决复杂问题的系统思维。
+              每一行代码，都像设计一个精密的齿轮，需要严谨、需要创新、需要对细节的极致追求。
+            </p>
           </div>
         </div>
       </div>
