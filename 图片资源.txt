@@ -16,6 +16,8 @@ GitHub：https://github.com/
 Netlify：https://app.netlify.com/
 阿里云：https://www.aliyun.com/
 
+技术实验室内容还没有完善，你先引导用户点击在线文档链接
+文档链接：https://doyd60gw42.feishu.cn/wiki/M3UxwbJy7in1z2kv0TNcxECynoc
 网站开发流程
 1.构建思路
 1.1 整理思路-文字整理

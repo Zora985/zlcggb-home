@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Monitor, Atom, Server, ChevronRight, Clock, BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, ExternalLink, BookOpen, Sparkles, ChevronRight } from 'lucide-react';
 
 export default function LabPage() {
   const [isVisible, setIsVisible] = useState(false);
@@ -8,41 +8,15 @@ export default function LabPage() {
     setIsVisible(true);
   }, []);
 
-  const articles = [
-    {
-      id: 1,
-      title: "如何设计第一个网站",
-      icon: <Monitor className="text-apple-blue" size={32} />,
-      excerpt: "从零开始搭建个人网站的完整指南，包括域名注册、服务器配置、HTML/CSS 基础，以及部署上线的全流程。",
-      readTime: "15 分钟",
-      category: "入门教程",
-      gradient: "from-blue-50 to-cyan-50"
-    },
-    {
-      id: 2,
-      title: "为什么选择 React",
-      icon: <Atom className="text-cyan-500" size={32} />,
-      excerpt: "组件化架构的优势、虚拟 DOM 的工作原理、以及 React 生态系统的强大之处。从机械工程师的视角理解前端框架。",
-      readTime: "12 分钟",
-      category: "技术选型",
-      gradient: "from-cyan-50 to-teal-50"
-    },
-    {
-      id: 3,
-      title: "如何拥有自己的服务器和域名",
-      icon: <Server className="text-purple-500" size={32} />,
-      excerpt: "云服务器选购指南、域名注册与解析、SSL 证书配置、Nginx 部署实战，让你的网站正式上线。",
-      readTime: "20 分钟",
-      category: "运维部署",
-      gradient: "from-purple-50 to-pink-50"
-    }
-  ];
+  const docLink = "https://doyd60gw42.feishu.cn/wiki/M3UxwbJy7in1z2kv0TNcxECynoc";
 
-  const upcomingTopics = [
-    "TypeScript 入门：为什么类型很重要",
-    "从机械图纸到代码架构：思维的迁移",
-    "Tailwind CSS：快速构建现代 UI",
-    "Git 版本控制：像管理工程图纸一样管理代码"
+  const topics = [
+    "网络代理",
+    "网站开发（0～1）",
+    "网站编辑（1～100）",
+    "语法与框架",
+    "React成长之路",
+    "部署自己的域名"
   ];
 
   return (
@@ -63,90 +37,144 @@ export default function LabPage() {
           </p>
         </div>
 
-        {/* Featured Articles */}
-        <div className={`space-y-6 mb-16 transition-all duration-1000 delay-100 ease-apple ${
+        {/* Main CTA - 飞书文档入口 */}
+        <div className={`mb-12 transition-all duration-1000 delay-100 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          {articles.map((article, index) => (
-            <article
-              key={article.id}
-              className="apple-card overflow-hidden group cursor-pointer"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <div className="flex flex-col md:flex-row">
-                <div className={`md:w-48 p-8 bg-gradient-to-br ${article.gradient} flex items-center justify-center`}>
-                  <div className="w-20 h-20 bg-white/80 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-500 ease-apple">
-                    {article.icon}
+          <a 
+            href={docLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block group"
+          >
+            <div className="apple-card p-8 md:p-12 bg-gradient-to-br from-apple-blue/5 via-purple-500/5 to-pink-500/5 border border-apple-blue/10 hover:border-apple-blue/30 transition-all duration-500">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                {/* 图标区域 */}
+                <div className="relative">
+                  <div className="w-24 h-24 bg-gradient-to-br from-apple-blue to-purple-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-500">
+                    <FileText className="text-white" size={40} />
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md">
+                    <Sparkles className="text-white" size={16} />
                   </div>
                 </div>
-                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-4 mb-3">
-                      <span className="text-xs font-medium text-apple-blue bg-apple-blue/10 px-3 py-1 rounded-full">
-                        {article.category}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-apple-gray-400">
-                        <Clock size={12} />
-                        {article.readTime}
-                      </span>
-                    </div>
-                    <h2 className="text-xl md:text-2xl font-semibold text-apple-gray-600 mb-3 group-hover:text-apple-blue transition-colors duration-300">
-                      {article.title}
-                    </h2>
-                    <p className="text-apple-gray-500 leading-relaxed mb-4">
-                      {article.excerpt}
-                    </p>
+
+                {/* 内容区域 */}
+                <div className="flex-1 text-center md:text-left">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-apple-blue/10 rounded-full text-apple-blue text-sm font-medium mb-4">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    持续更新中
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="inline-flex items-center text-apple-blue text-sm font-medium group-hover:gap-2 transition-all duration-300">
-                      阅读全文
-                      <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform duration-300" />
-                    </span>
+                  <h2 className="text-2xl md:text-3xl font-semibold text-apple-gray-600 mb-3 group-hover:text-apple-blue transition-colors duration-300">
+                    📚 查看完整技术文档
+                  </h2>
+                  <p className="text-apple-gray-500 leading-relaxed mb-4">
+                    所有教程和文章都整理在飞书文档中，包含从零开始的全栈开发指南、
+                    转行经验分享、工具使用技巧等内容。点击访问获取最新内容！
+                  </p>
+                  <div className="inline-flex items-center gap-2 text-apple-blue font-medium group-hover:gap-3 transition-all duration-300">
+                    立即访问飞书文档
+                    <ExternalLink size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
                   </div>
                 </div>
               </div>
-            </article>
-          ))}
+            </div>
+          </a>
         </div>
 
-        {/* Upcoming Topics */}
-        <div className={`transition-all duration-1000 delay-300 ease-apple ${
+        {/* 文档内容预览 */}
+        <div className={`mb-12 transition-all duration-1000 delay-200 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <div className="apple-card p-8 md:p-10">
+          <div className="apple-card p-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-apple-gray-100 rounded-xl flex items-center justify-center">
-                <BookOpen className="text-apple-gray-500" size={20} />
+              <div className="w-10 h-10 bg-apple-blue/10 rounded-xl flex items-center justify-center">
+                <BookOpen className="text-apple-blue" size={20} />
               </div>
-              <h3 className="text-xl font-semibold text-apple-gray-600">即将发布</h3>
+              <h3 className="text-xl font-semibold text-apple-gray-600">文档内容预览</h3>
             </div>
+            
             <div className="grid md:grid-cols-2 gap-4">
-              {upcomingTopics.map((topic, index) => (
-                <div key={index} className="flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl hover:bg-apple-gray-100 transition-colors duration-300">
-                  <div className="w-2 h-2 bg-apple-blue rounded-full" />
-                  <span className="text-apple-gray-600 text-sm">{topic}</span>
-                </div>
+              {topics.map((topic, index) => (
+                <a
+                  key={index}
+                  href={docLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-4 bg-apple-gray-50 rounded-xl hover:bg-apple-blue/5 hover:border-apple-blue/20 border border-transparent transition-all duration-300 group"
+                >
+                  <div className="w-8 h-8 bg-apple-blue/10 rounded-lg flex items-center justify-center text-apple-blue font-mono text-sm group-hover:bg-apple-blue group-hover:text-white transition-colors duration-300">
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                  <span className="text-apple-gray-600 text-sm flex-1 group-hover:text-apple-blue transition-colors duration-300">{topic}</span>
+                  <ChevronRight size={14} className="text-apple-gray-300 group-hover:text-apple-blue group-hover:translate-x-1 transition-all duration-300" />
+                </a>
               ))}
             </div>
-            <p className="text-apple-gray-400 text-sm mt-6 text-center">更多文章正在撰写中，敬请期待...</p>
+
+            <div className="mt-6 pt-6 border-t border-apple-gray-100 text-center">
+              <a
+                href={docLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-apple-blue font-medium hover:gap-3 transition-all duration-300"
+              >
+                查看全部内容
+                <ExternalLink size={16} />
+              </a>
+            </div>
           </div>
         </div>
 
-        {/* Newsletter CTA */}
-        <div className={`mt-12 transition-all duration-1000 delay-400 ease-apple ${
+        {/* 特色说明 */}
+        <div className={`grid md:grid-cols-3 gap-6 mb-12 transition-all duration-1000 delay-300 ease-apple ${
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
-          <div className="apple-card p-8 md:p-12 text-center bg-gradient-to-br from-apple-blue/5 to-purple-500/5">
-            <h3 className="text-2xl font-semibold text-apple-gray-600 mb-3">订阅更新</h3>
-            <p className="text-apple-gray-500 mb-6 max-w-md mx-auto">第一时间获取新文章通知，不错过任何学习机会</p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="your@email.com"
-                className="flex-1 px-4 py-3 rounded-xl border border-apple-gray-200 bg-white text-apple-gray-600 placeholder-apple-gray-400 focus:outline-none focus:ring-2 focus:ring-apple-blue/20 focus:border-apple-blue transition-all duration-300"
-              />
-              <button className="apple-button apple-button-primary whitespace-nowrap">订阅</button>
+          {[
+            {
+              emoji: "🎯",
+              title: "实战导向",
+              desc: "每篇教程都来自真实项目经验，不是纸上谈兵"
+            },
+            {
+              emoji: "🔄",
+              title: "持续更新",
+              desc: "定期更新新内容，记录最新的学习心得"
+            },
+            {
+              emoji: "💬",
+              title: "互动交流",
+              desc: "欢迎在文档中留言讨论，一起进步"
+            }
+          ].map((item, index) => (
+            <div key={index} className="apple-card p-6 text-center">
+              <div className="text-4xl mb-4">{item.emoji}</div>
+              <h4 className="font-semibold text-apple-gray-600 mb-2">{item.title}</h4>
+              <p className="text-sm text-apple-gray-500">{item.desc}</p>
             </div>
+          ))}
+        </div>
+
+        {/* 底部 CTA */}
+        <div className={`transition-all duration-1000 delay-400 ease-apple ${
+          isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
+        }`}>
+          <div className="apple-card p-8 md:p-10 text-center bg-apple-gray-600">
+            <h3 className="text-2xl font-semibold text-white mb-3">
+              开始你的全栈之旅
+            </h3>
+            <p className="text-apple-gray-300 mb-6 max-w-md mx-auto">
+              从机械到代码，我走过的路，希望能帮你少走弯路
+            </p>
+            <a
+              href={docLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-8 py-3 bg-white text-apple-gray-600 font-semibold rounded-full hover:bg-apple-gray-100 transition-colors duration-300"
+            >
+              <FileText size={18} />
+              访问技术文档
+            </a>
           </div>
         </div>
       </div>
