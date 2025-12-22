@@ -409,35 +409,41 @@ const Experience: React.FC = () => {
       <pointLight position={[-10, -5, -10]} intensity={3} color="#004225" />
       <pointLight position={[0, 0, 0]} intensity={1} color="#ffaa00" distance={10} />
 
-      {/* 星空和闪烁 - 保持视觉效果 */}
-      <Stars radius={50} depth={50} count={mobile ? 1500 : 2000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={mobile ? 150 : 200} scale={25} size={4} speed={0.3} opacity={0.6} color="#ffd700" />
-      <Sparkles count={mobile ? 100 : 150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
-      <Sparkles count={mobile ? 100 : 150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
+      {/* 星空和闪烁 - 仅桌面端显示，移动端完全禁用以提升性能 */}
+      {!mobile && (
+        <>
+          <Stars radius={50} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+          <Sparkles count={200} scale={25} size={4} speed={0.3} opacity={0.6} color="#ffd700" />
+          <Sparkles count={150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
+          <Sparkles count={150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
+        </>
+      )}
 
-      {/* Environment - 移动端也保留，增强视觉效果 */}
-      <Environment preset="city" />
+      {/* Environment - 仅桌面端 */}
+      {!mobile && <Environment preset="city" />}
 
       <group position={[0, -2, 0]}>
         <TreeSystem />
-        {/* 水晶装饰 - 移动端可选禁用（如果仍卡顿） */}
-        <CrystalOrnaments />
+        {/* 水晶装饰 - 移动端禁用以提升性能 */}
+        {!mobile && <CrystalOrnaments />}
       </group>
 
       <CameraController />
 
-      {/* 后处理效果 - 移动端简化 */}
-      <EffectComposer disableNormalPass>
-        <Bloom
-          luminanceThreshold={1.0}
-          mipmapBlur
-          intensity={mobile ? 0.3 : 0.5}
-          radius={mobile ? 0.2 : 0.3}
-          levels={mobile ? 4 : 6}
-        />
-        {!mobile && <Noise opacity={0.03} />}
-        <Vignette eskil={false} offset={0.1} darkness={mobile ? 0.5 : 0.8} />
-      </EffectComposer>
+      {/* 后处理效果 - 移动端完全禁用以提升性能 */}
+      {!mobile && (
+        <EffectComposer disableNormalPass>
+          <Bloom
+            luminanceThreshold={1.0}
+            mipmapBlur
+            intensity={0.5}
+            radius={0.3}
+            levels={6}
+          />
+          <Noise opacity={0.03} />
+          <Vignette eskil={false} offset={0.1} darkness={0.8} />
+        </EffectComposer>
+      )}
     </Canvas>
   );
 };

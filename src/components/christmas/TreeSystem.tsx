@@ -14,17 +14,19 @@ const isMobile = (): boolean => {
     || window.innerWidth < 768;
 };
 
-// 性能配置 - 根据设备类型调整（移动端保持视觉效果，仅微调）
+// 性能配置 - 移动端大幅精简以确保加载成功
 const getPerformanceConfig = () => {
   const mobile = isMobile();
   return {
-    particleCount: mobile ? 3500 : 4500,  // 移动端仅减少约22%
-    lightCount: mobile ? 250 : 300,       // 移动端仅减少约17%
-    enableCurl: true,                      // 保持curl动画效果
-    useMobileHtmlPhoto: mobile,            // 移动端使用HTML图片替代纹理
+    // 移动端使用较少粒子，确保首屏加载成功
+    maxParticleCount: mobile ? 2000 : 4500,
+    lightCount: mobile ? 120 : 300,        // 移动端减少灯串
+    enableCurl: !mobile,                    // 移动端禁用curl动画节省GPU
+    useMobileHtmlPhoto: mobile,
   };
 };
 
+// 桌面端材质 - 带有curl动画效果
 const FoliageMaterial = shaderMaterial(
   { uTime: 0, uColor: new THREE.Color('#004225'), uColorAccent: new THREE.Color('#00fa9a'), uPixelRatio: 1 },
   `uniform float uTime; uniform float uPixelRatio; attribute float size; varying vec3 vPosition; varying float vBlink; vec3 curl(float x, float y, float z) { float eps=1.,n1,n2,a,b;x/=eps;y/=eps;z/=eps;vec3 curl=vec3(0.);n1=sin(y+cos(z+uTime));n2=cos(x+sin(z+uTime));curl.x=n1-n2;n1=sin(z+cos(x+uTime));n2=cos(y+sin(x+uTime));curl.z=n1-n2;n1=sin(x+cos(y+uTime));n2=cos(z+sin(y+uTime));curl.z=n1-n2;return curl*0.1; } void main() { vPosition=position; vec3 distortedPosition=position+curl(position.x,position.y,position.z); vec4 mvPosition=modelViewMatrix*vec4(distortedPosition,1.0); gl_Position=projectionMatrix*mvPosition; gl_PointSize=size*uPixelRatio*(60.0/-mvPosition.z); vBlink=sin(uTime*2.0+position.y*5.0+position.x); }`,
@@ -32,9 +34,18 @@ const FoliageMaterial = shaderMaterial(
 );
 extend({ FoliageMaterial });
 
+// 移动端材质 - 简化版，无curl动画，更轻量
+const SimpleFoliageMaterial = shaderMaterial(
+  { uTime: 0, uColor: new THREE.Color('#004225'), uColorAccent: new THREE.Color('#00fa9a'), uPixelRatio: 1 },
+  `uniform float uTime; uniform float uPixelRatio; attribute float size; varying float vBlink; void main() { vec4 mvPosition=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mvPosition; gl_PointSize=size*uPixelRatio*(60.0/-mvPosition.z); vBlink=sin(uTime*2.0+position.y*5.0+position.x); }`,
+  `uniform vec3 uColor; uniform vec3 uColorAccent; varying float vBlink; void main() { vec2 xy=gl_PointCoord.xy-vec2(0.5); float ll=length(xy); if(ll>0.5) discard; float strength=pow(1.0-ll*2.0,3.0); vec3 color=mix(uColor,uColorAccent,smoothstep(-0.8,0.8,vBlink)); gl_FragColor=vec4(color,strength); }`
+);
+extend({ SimpleFoliageMaterial });
+
 declare module '@react-three/fiber' {
   interface ThreeElements {
     foliageMaterial: ReactThreeFiber.Object3DNode<THREE.ShaderMaterial, typeof FoliageMaterial>;
+    simpleFoliageMaterial: ReactThreeFiber.Object3DNode<THREE.ShaderMaterial, typeof SimpleFoliageMaterial>;
     shimmerMaterial: ReactThreeFiber.Object3DNode<THREE.ShaderMaterial, typeof ShimmerMaterial>;
   }
 }
@@ -366,12 +377,14 @@ const TreeSystem: React.FC = () => {
   // 获取性能配置（只在组件挂载时计算一次）
   const perfConfig = useMemo(() => {
     const config = getPerformanceConfig();
-    console.log(`[TreeSystem] 性能配置: 粒子=${config.particleCount}, 灯串=${config.lightCount}, HTML图片=${config.useMobileHtmlPhoto}`);
+    console.log(`[TreeSystem] 性能配置: 粒子=${config.maxParticleCount}, 灯串=${config.lightCount}, curl=${config.enableCurl}`);
     return config;
   }, []);
 
+  // 不使用渐进式加载，直接使用固定数量避免 WebGL 缓冲区问题
   const { foliageData, lightsData } = useMemo(() => {
-    const particleCount = perfConfig.particleCount;
+    const mobile = isMobile();
+    const particleCount = perfConfig.maxParticleCount;
     const foliage = new Float32Array(particleCount * 3);
     const foliageChaos = new Float32Array(particleCount * 3);
     const foliageTree = new Float32Array(particleCount * 3);
@@ -386,8 +399,8 @@ const TreeSystem: React.FC = () => {
       foliageTree[i3] = Math.cos(angle) * coneRadius;
       foliageTree[i3 + 1] = h - 6;
       foliageTree[i3 + 2] = Math.sin(angle) * coneRadius;
-      // 粒子大小保持一致
-      sizes[i] = Math.random() * 1.5 + 0.5;
+      // 移动端粒子稍大一些，弥补数量减少
+      sizes[i] = mobile ? (Math.random() * 2.0 + 0.8) : (Math.random() * 1.5 + 0.5);
     }
 
     const lightCount = perfConfig.lightCount;
@@ -406,8 +419,8 @@ const TreeSystem: React.FC = () => {
       lightTree[i3 + 2] = Math.sin(angle) * coneRadius;
     }
 
-    return { foliageData: { current: foliage, chaos: foliageChaos, tree: foliageTree, sizes }, lightsData: { chaos: lightChaos, tree: lightTree, count: lightCount } };
-  }, [perfConfig]);
+    return { foliageData: { current: foliage, chaos: foliageChaos, tree: foliageTree, sizes, count: particleCount }, lightsData: { chaos: lightChaos, tree: lightTree, count: lightCount } };
+  }, [perfConfig.maxParticleCount, perfConfig.lightCount]);
 
   const photosData: ParticleData[] = useMemo(() => {
     const list = (photoConfigs || []).slice(0, 5);
@@ -846,10 +859,16 @@ const TreeSystem: React.FC = () => {
           <bufferAttribute attach="attributes-position" count={foliageData.current.length / 3} array={foliageData.current} itemSize={3} />
           <bufferAttribute attach="attributes-size" count={foliageData.sizes.length} array={foliageData.sizes} itemSize={1} />
         </bufferGeometry>
-        <foliageMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+        {/* 移动端使用简化材质，桌面端使用带curl动画的材质 */}
+        {perfConfig.enableCurl ? (
+          <foliageMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+        ) : (
+          <simpleFoliageMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+        )}
       </points>
       <instancedMesh ref={lightsRef} args={[undefined, undefined, lightsData.count]}>
-        <sphereGeometry args={[0.05, 8, 8]} />
+        {/* 移动端使用更简单的几何体 */}
+        <sphereGeometry args={[0.05, perfConfig.enableCurl ? 8 : 4, perfConfig.enableCurl ? 8 : 4]} />
         <meshStandardMaterial color="#ffddaa" emissive="#ffbb00" emissiveIntensity={3} toneMapped={false} />
       </instancedMesh>
       {photoObjects.map((obj) => (
