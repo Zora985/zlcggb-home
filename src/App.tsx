@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Layout from './components/Layout';
 import HomePage from './components/HomePage';
 import PortfolioPage from './components/PortfolioPage';
 import TimelinePage from './components/TimelinePage';
 import LabPage from './components/LabPage';
+import ChristmasPage from './components/ChristmasPage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -23,6 +24,8 @@ function App() {
         return <TimelinePage />;
       case 'lab':
         return <LabPage />;
+      case 'christmas':
+        return <ChristmasPage />;
       default:
         return <HomePage onNavigate={handleNavigate} />;
     }

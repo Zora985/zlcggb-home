@@ -15,49 +15,49 @@ interface LayoutProps {
 }
 
 // 融合型 Logo - 齿轮 + 代码标签
-const FusionLogo = ({ className = "" }: { className?: string }) => (
+const FusionLogo = ({ className = "", isDark = false }: { className?: string; isDark?: boolean }) => (
   <svg width="160" height="44" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg" className={className}>
     <defs>
       <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" style={{ stopColor: '#6e6e73', stopOpacity: 1 }} />
-        <stop offset="100%" style={{ stopColor: '#0071e3', stopOpacity: 1 }} />
+        <stop offset="0%" style={{ stopColor: isDark ? '#a1a1aa' : '#6e6e73', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: isDark ? '#22c55e' : '#0071e3', stopOpacity: 1 }} />
+      </linearGradient>
+      <linearGradient id="logoGradDark" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" style={{ stopColor: '#a1a1aa', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: '#22c55e', stopOpacity: 1 }} />
       </linearGradient>
     </defs>
     <g transform="translate(10, 10)">
-      {/* 左半齿轮 */}
       <path 
         d="M20 0 C 8.95 0 0 8.95 0 20 C 0 31.05 8.95 40 20 40" 
         fill="none" 
-        stroke="url(#logoGrad)" 
+        stroke={isDark ? "url(#logoGradDark)" : "url(#logoGrad)"}
         strokeWidth="3.5" 
         strokeLinecap="round"
       />
-      {/* 齿轮齿 */}
       <path 
         d="M5 8 L 8 5 M 0 20 L 4 20 M 5 32 L 8 35" 
-        stroke="url(#logoGrad)" 
+        stroke={isDark ? "url(#logoGradDark)" : "url(#logoGrad)"}
         strokeWidth="3.5" 
         strokeLinecap="round" 
       />
-      {/* 代码标签 > */}
       <path 
         d="M25 10 L 35 20 L 25 30" 
         fill="none" 
-        stroke="#0071e3" 
+        stroke={isDark ? "#22c55e" : "#0071e3"}
         strokeWidth="3.5" 
         strokeLinecap="round" 
         strokeLinejoin="round"
       />
-      {/* 斜杠 / */}
       <path 
         d="M32 8 L 22 32" 
-        stroke="#0071e3" 
+        stroke={isDark ? "#22c55e" : "#0071e3"}
         strokeWidth="2.5" 
         strokeLinecap="round"
       />
     </g>
-    <text x="58" y="36" fontFamily="'Inter', sans-serif" fontSize="22" fontWeight="600" fill="#1d1d1f" letterSpacing="-0.5">
-      zlc<tspan fill="#0071e3">ggb</tspan>
+    <text x="58" y="36" fontFamily="'Inter', sans-serif" fontSize="22" fontWeight="600" fill={isDark ? "#ffffff" : "#1d1d1f"} letterSpacing="-0.5">
+      zlc<tspan fill={isDark ? "#22c55e" : "#0071e3"}>ggb</tspan>
     </text>
   </svg>
 );
@@ -65,6 +65,9 @@ const FusionLogo = ({ className = "" }: { className?: string }) => (
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  
+  // 判断是否是圣诞树页面
+  const isChristmasPage = currentPage === 'christmas';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -79,16 +82,19 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
     { id: 'home', label: '首页' },
     { id: 'portfolio', label: '作品集' },
     { id: 'timeline', label: '进化之路' },
-    { id: 'lab', label: '技术实验室' }
+    { id: 'lab', label: '技术实验室' },
+    { id: 'christmas', label: '🎄 圣诞树' }
   ];
 
   return (
-    <div className="min-h-screen bg-apple-gray-100">
-      {/* Apple-style Navbar */}
+    <div className={`min-h-screen ${isChristmasPage ? 'bg-black' : 'bg-apple-gray-100'}`}>
+      {/* Navbar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-apple ${
-        isScrolled 
-          ? 'glass border-b border-apple-gray-200/50' 
-          : 'bg-transparent'
+        isChristmasPage
+          ? 'bg-black/80 backdrop-blur-md border-b border-white/10'
+          : isScrolled 
+            ? 'glass border-b border-apple-gray-200/50' 
+            : 'bg-transparent'
       }`}>
         <div className="max-w-[980px] mx-auto px-6">
           <div className="flex items-center justify-between h-12">
@@ -97,7 +103,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               className="cursor-pointer hover:opacity-80 transition-opacity duration-300"
               onClick={() => onNavigate('home')}
             >
-              <FusionLogo />
+              <FusionLogo isDark={isChristmasPage} />
             </div>
 
             {/* Desktop Navigation */}
@@ -107,9 +113,13 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
                   className={`text-xs font-medium transition-all duration-300 ${
-                    currentPage === item.id
-                      ? 'text-apple-gray-600'
-                      : 'text-apple-gray-500 hover:text-apple-gray-600'
+                    isChristmasPage
+                      ? currentPage === item.id
+                        ? 'text-green-400'
+                        : 'text-gray-400 hover:text-green-300'
+                      : currentPage === item.id
+                        ? 'text-apple-gray-600'
+                        : 'text-apple-gray-500 hover:text-apple-gray-600'
                   }`}
                 >
                   {item.label}
@@ -119,7 +129,11 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                 href="https://github.com/zlcggb/zlcggb-home"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-apple-gray-500 hover:text-apple-gray-600 transition-colors duration-300"
+                className={`transition-colors duration-300 ${
+                  isChristmasPage 
+                    ? 'text-gray-400 hover:text-green-400' 
+                    : 'text-apple-gray-500 hover:text-apple-gray-600'
+                }`}
               >
                 <Github size={16} />
               </a>
@@ -127,7 +141,11 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden text-apple-gray-600 hover:text-apple-blue transition-colors duration-300"
+              className={`md:hidden transition-colors duration-300 ${
+                isChristmasPage 
+                  ? 'text-white hover:text-green-400' 
+                  : 'text-apple-gray-600 hover:text-apple-blue'
+              }`}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -136,7 +154,11 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
 
           {/* Mobile Navigation */}
           {isMenuOpen && (
-            <div className="md:hidden glass border-t border-apple-gray-200/50 animate-fade-in-up">
+            <div className={`md:hidden animate-fade-in-up ${
+              isChristmasPage 
+                ? 'bg-black/90 border-t border-white/10' 
+                : 'glass border-t border-apple-gray-200/50'
+            }`}>
               <div className="py-4 space-y-1">
                 {navItems.map((item) => (
                   <button
@@ -146,9 +168,13 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                       setIsMenuOpen(false);
                     }}
                     className={`block w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                      currentPage === item.id
-                        ? 'text-apple-blue bg-apple-blue/5'
-                        : 'text-apple-gray-600 hover:bg-apple-gray-200/50'
+                      isChristmasPage
+                        ? currentPage === item.id
+                          ? 'text-green-400 bg-green-500/10'
+                          : 'text-gray-300 hover:bg-white/5'
+                        : currentPage === item.id
+                          ? 'text-apple-blue bg-apple-blue/5'
+                          : 'text-apple-gray-600 hover:bg-apple-gray-200/50'
                     }`}
                   >
                     {item.label}
@@ -159,7 +185,9 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                     href="https://github.com/zlcggb/zlcggb-home"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center text-apple-gray-500 hover:text-apple-gray-600 transition-colors duration-300"
+                    className={`inline-flex items-center transition-colors duration-300 ${
+                      isChristmasPage ? 'text-gray-400 hover:text-green-400' : 'text-apple-gray-500 hover:text-apple-gray-600'
+                    }`}
                   >
                     <Github size={16} className="mr-1" />
                     <span className="text-sm">GitHub</span>
@@ -168,7 +196,9 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                     href="https://b23.tv/xJIdoxY"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center text-apple-gray-500 hover:text-pink-500 transition-colors duration-300"
+                    className={`inline-flex items-center transition-colors duration-300 ${
+                      isChristmasPage ? 'text-gray-400 hover:text-pink-400' : 'text-apple-gray-500 hover:text-pink-500'
+                    }`}
                   >
                     <BilibiliIcon size={16} />
                     <span className="text-sm ml-1">B站</span>
@@ -185,46 +215,48 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         {children}
       </main>
 
-      {/* Apple-style Footer */}
-      <footer className="bg-apple-gray-100 border-t border-apple-gray-200/80 py-8">
-        <div className="max-w-[980px] mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <FusionLogo className="opacity-60 hover:opacity-100 transition-opacity" />
-            </div>
-            <p className="text-xs text-apple-gray-400">
-              © 2025 zlcggb. 用工程思维构建数字世界
-            </p>
-            <div className="flex items-center space-x-5">
-              <a
-                href="mailto:u0015098@unilumin.com"
-                className="text-apple-gray-400 hover:text-apple-blue transition-colors duration-300"
-                title="邮箱"
-              >
-                <Mail size={18} />
-              </a>
-              <a
-                href="https://b23.tv/xJIdoxY"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-apple-gray-400 hover:text-pink-500 transition-colors duration-300"
-                title="B站"
-              >
-                <BilibiliIcon size={18} />
-              </a>
-              <a
-                href="https://github.com/zlcggb/zlcggb-home"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-apple-gray-400 hover:text-apple-gray-600 transition-colors duration-300"
-                title="GitHub"
-              >
-                <Github size={18} />
-              </a>
+      {/* Footer - 圣诞树页面不显示 */}
+      {!isChristmasPage && (
+        <footer className="bg-apple-gray-100 border-t border-apple-gray-200/80 py-8">
+          <div className="max-w-[980px] mx-auto px-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <FusionLogo className="opacity-60 hover:opacity-100 transition-opacity" />
+              </div>
+              <p className="text-xs text-apple-gray-400">
+                © 2025 zlcggb. 用工程思维构建数字世界
+              </p>
+              <div className="flex items-center space-x-5">
+                <a
+                  href="mailto:u0015098@unilumin.com"
+                  className="text-apple-gray-400 hover:text-apple-blue transition-colors duration-300"
+                  title="邮箱"
+                >
+                  <Mail size={18} />
+                </a>
+                <a
+                  href="https://b23.tv/xJIdoxY"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-apple-gray-400 hover:text-pink-500 transition-colors duration-300"
+                  title="B站"
+                >
+                  <BilibiliIcon size={18} />
+                </a>
+                <a
+                  href="https://github.com/zlcggb/zlcggb-home"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-apple-gray-400 hover:text-apple-gray-600 transition-colors duration-300"
+                  title="GitHub"
+                >
+                  <Github size={18} />
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ExternalLink, Wrench, Code, Award, Microscope, Car } from 'lucide-react';
 
 export default function PortfolioPage() {

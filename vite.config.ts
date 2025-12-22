@@ -7,4 +7,13 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    proxy: {
+      '/api/images': {
+        target: 'https://file.unilumin-gtm.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/images/, ''),
+      },
+    },
+  },
 });
