@@ -369,11 +369,14 @@ const Experience: React.FC = () => {
   // 移动端性能优化配置
   const mobile = useMemo(() => isMobile(), []);
   
+  // 移动端相机更远，看到更完整的树
+  const cameraPosition: [number, number, number] = mobile ? [0, 0, 28] : [0, 0, 18];
+  
   return (
     <Canvas
       shadows={!mobile} // 移动端禁用阴影
       dpr={mobile ? [1, 1] : [1, 1.5]} // 移动端降低分辨率
-      camera={{ position: [0, 0, 18], fov: 45, near: 0.1, far: 100 }}
+      camera={{ position: cameraPosition, fov: 45, near: 0.1, far: 100 }}
       gl={{
         antialias: false,
         alpha: true,
@@ -406,18 +409,14 @@ const Experience: React.FC = () => {
       <pointLight position={[-10, -5, -10]} intensity={3} color="#004225" />
       <pointLight position={[0, 0, 0]} intensity={1} color="#ffaa00" distance={10} />
 
-      {/* 星空和闪烁 - 移动端减少数量 */}
-      <Stars radius={50} depth={50} count={mobile ? 800 : 2000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={mobile ? 80 : 200} scale={25} size={mobile ? 5 : 4} speed={0.3} opacity={0.6} color="#ffd700" />
-      {!mobile && (
-        <>
-          <Sparkles count={150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
-          <Sparkles count={150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
-        </>
-      )}
+      {/* 星空和闪烁 - 保持视觉效果 */}
+      <Stars radius={50} depth={50} count={mobile ? 1500 : 2000} factor={4} saturation={0} fade speed={1} />
+      <Sparkles count={mobile ? 150 : 200} scale={25} size={4} speed={0.3} opacity={0.6} color="#ffd700" />
+      <Sparkles count={mobile ? 100 : 150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
+      <Sparkles count={mobile ? 100 : 150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
 
-      {/* Environment 延迟加载 - 移动端禁用 */}
-      {!mobile && <Environment preset="city" />}
+      {/* Environment - 移动端也保留，增强视觉效果 */}
+      <Environment preset="city" />
 
       <group position={[0, -2, 0]}>
         <TreeSystem />

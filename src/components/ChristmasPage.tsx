@@ -337,29 +337,29 @@ const ChristmasContent: React.FC<{
 
       {/* UI 层 */}
       <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-6">
-        <header className="flex justify-between items-start w-full">
-          {/* 标题部分 - 受 showTitle 控制 */}
-          <div className="transition-opacity duration-500" style={{ opacity: showTitle ? 1 : 0 }}>
-            <h1 className="text-3xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-300 via-green-200 to-amber-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+        <header className="flex justify-between items-start w-full gap-2">
+          {/* 标题部分 - 受 showTitle 控制，移动端一行显示 */}
+          <div className="transition-opacity duration-500 flex-1 min-w-0" style={{ opacity: showTitle ? 1 : 0 }}>
+            <h1 className="text-sm sm:text-xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-300 via-green-200 to-amber-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)] leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {customTitle}
             </h1>
-            <p className="text-red-400/80 tracking-widest text-xs mt-2">
-              <span className="inline-flex items-center gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-white/60 text-[10px] tracking-normal">
+            <p className="text-red-400/80 tracking-wider text-[9px] sm:text-xs mt-0.5 md:mt-2">
+              <span className="inline-flex items-center gap-1 md:gap-2">
+                <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-white/60 text-[7px] md:text-[10px] tracking-normal">
                   {state === 'CHAOS' ? '星尘' : '成树'}
                 </span>
-                <span>{state === 'CHAOS' ? customSubtitleChaos : customSubtitleFormed}</span>
+                <span className="text-[8px] md:text-xs truncate">{state === 'CHAOS' ? customSubtitleChaos : customSubtitleFormed}</span>
               </span>
             </p>
           </div>
 
-          {/* 全屏切换按钮 - 始终显示，不受 showTitle 控制 */}
+          {/* 全屏切换按钮 - 移动端更小 */}
           <button
             onClick={onToggleFullscreen}
-            className="pointer-events-auto p-3 bg-white/10 backdrop-blur-sm rounded-xl text-white hover:bg-white/20 transition-all hover:scale-105 border border-white/10 ml-auto"
+            className="pointer-events-auto p-1.5 md:p-3 bg-white/10 backdrop-blur-sm rounded-lg md:rounded-xl text-white hover:bg-white/20 transition-all hover:scale-105 border border-white/10 flex-shrink-0"
             title={isFullscreen ? '退出全屏' : '全屏模式'}
           >
-            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+            {isFullscreen ? <Minimize2 size={14} className="md:w-5 md:h-5" /> : <Maximize2 size={14} className="md:w-5 md:h-5" />}
           </button>
         </header>
 
@@ -512,6 +512,14 @@ const ChristmasPage: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
+
+  // 2秒后自动进入全屏模式
+  useEffect(() => {
+    const autoFullscreenTimer = setTimeout(() => {
+      setIsFullscreen(true);
+    }, 2000);
+    return () => clearTimeout(autoFullscreenTimer);
+  }, []);
 
   // 编辑缓存：保存到 sessionStorage；刷新清空（beforeunload 清理）
   useEffect(() => {

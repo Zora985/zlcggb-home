@@ -21,7 +21,7 @@ const CrystalOrnaments: React.FC = () => {
   const mobile = useMemo(() => isMobile(), []);
 
   const ornaments = useMemo(() => {
-    const count = mobile ? 20 : 50; // 移动端减少到 20 个
+    const count = mobile ? 40 : 50; // 移动端仅减少20%
     const items = [];
     const colors = ['#D32F2F', '#FFD700', '#2E7D32'];
 

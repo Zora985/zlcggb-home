@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from 'react';
+import React, { useContext, useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { TreeContext, TreeContextType, CameraViewType, EditablePhotoConfig } from './types';
 import { DEFAULT_PHOTOS, DEFAULT_SUBTITLE_CHAOS, DEFAULT_SUBTITLE_FORMED, DEFAULT_TITLE } from './defaultContent';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,7 +16,8 @@ import {
   ChevronUp,
   Hand,
   Pencil,
-  RotateCcw
+  RotateCcw,
+  Images
 } from 'lucide-react';
 
 const ControlPanel: React.FC = () => {
@@ -48,7 +49,38 @@ const ControlPanel: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'control' | 'edit'>('control');
+  const [batchUploading, setBatchUploading] = useState(false);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const batchFileInputRef = useRef<HTMLInputElement | null>(null);
+  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 自动隐藏控制面板（2秒后）
+  const startAutoHideTimer = useCallback(() => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+    }
+    autoHideTimerRef.current = setTimeout(() => {
+      setIsExpanded(false);
+    }, 2000);
+  }, []);
+
+  const cancelAutoHideTimer = useCallback(() => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  }, []);
+
+  // 首次加载时启动自动隐藏
+  useEffect(() => {
+    startAutoHideTimer();
+    return () => cancelAutoHideTimer();
+  }, [startAutoHideTimer, cancelAutoHideTimer]);
+
+  // 用户交互时取消自动隐藏
+  const handlePanelInteraction = useCallback(() => {
+    cancelAutoHideTimer();
+  }, [cancelAutoHideTimer]);
 
   const normalizedPhotos: EditablePhotoConfig[] = useMemo(() => {
     const arr = Array.isArray(photoConfigs) ? [...photoConfigs] : [];
@@ -124,6 +156,40 @@ const ControlPanel: React.FC = () => {
     }
   };
 
+  // 一键上传多张图片
+  const handleBatchUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setBatchUploading(true);
+    try {
+      const fileArray = Array.from(files).slice(0, 5); // 最多5张
+      const uploadPromises = fileArray.map(async (file, index) => {
+        const url = await compressImageToDataUrl(file);
+        return {
+          id: `batch-${index}-${Date.now()}`,
+          url,
+          title: '', // 默认空标题
+        };
+      });
+      
+      const results = await Promise.all(uploadPromises);
+      
+      // 更新所有图片配置
+      const newConfigs = [...normalizedPhotos];
+      results.forEach((result, index) => {
+        if (index < 5) {
+          newConfigs[index] = result;
+        }
+      });
+      setPhotoConfigs(newConfigs);
+    } finally {
+      setBatchUploading(false);
+      // 清空 input 以便可以重复上传相同文件
+      if (batchFileInputRef.current) {
+        batchFileInputRef.current.value = '';
+      }
+    }
+  };
+
   const resetAll = () => {
     setCustomTitle(DEFAULT_TITLE);
     setCustomSubtitleFormed(DEFAULT_SUBTITLE_FORMED);
@@ -150,20 +216,22 @@ const ControlPanel: React.FC = () => {
     <motion.div 
       initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
-      className="absolute right-6 top-24 z-40 text-white"
+      className="absolute right-2 md:right-6 top-20 md:top-24 z-40 text-white"
+      onMouseEnter={handlePanelInteraction}
+      onTouchStart={handlePanelInteraction}
     >
-      <div className={`bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl overflow-hidden transition-all duration-300 ${isExpanded ? 'w-64' : 'w-auto'}`}>
-        {/* Header */}
+      <div className={`bg-black/40 backdrop-blur-md rounded-xl md:rounded-2xl border border-white/10 shadow-xl overflow-hidden transition-all duration-300 ${isExpanded ? 'w-56 md:w-64' : 'w-auto'}`}>
+        {/* Header - 移动端更紧凑 */}
         <div 
-          className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5"
-          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center justify-between p-2 md:p-4 cursor-pointer hover:bg-white/5"
+          onClick={() => { handlePanelInteraction(); setIsExpanded(!isExpanded); }}
         >
-          <div className="flex items-center gap-2">
-            <Settings2 size={18} className="text-yellow-400" />
-            {isExpanded && <h3 className="text-sm font-bold tracking-wider text-yellow-400">控制面板</h3>}
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <Settings2 size={14} className="text-yellow-400 md:w-[18px] md:h-[18px]" />
+            {isExpanded && <h3 className="text-xs md:text-sm font-bold tracking-wider text-yellow-400">控制面板</h3>}
           </div>
           <button className="text-white/50 hover:text-white">
-            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {isExpanded ? <ChevronUp size={14} className="md:w-4 md:h-4" /> : <ChevronDown size={14} className="md:w-4 md:h-4" />}
           </button>
         </div>
 
@@ -406,7 +474,25 @@ const ControlPanel: React.FC = () => {
 
                     {/* 图片编辑 */}
                     <div className="mb-3">
-                      <div className="text-[10px] text-white/50 mb-2">图片（最多 5 张）</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-[10px] text-white/50">图片（最多 5 张）</div>
+                        <button
+                          onClick={() => batchFileInputRef.current?.click()}
+                          disabled={batchUploading}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-gradient-to-r from-red-500/80 to-green-500/80 hover:from-red-500 hover:to-green-500 text-white text-[10px] font-medium transition-all disabled:opacity-50"
+                        >
+                          <Images size={12} />
+                          {batchUploading ? '上传中...' : '一键上传'}
+                        </button>
+                        <input
+                          ref={batchFileInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => handleBatchUpload(e.target.files)}
+                        />
+                      </div>
                       <div className="space-y-2">
                         {normalizedPhotos.map((p, idx) => (
                           <div key={`${p.id}-${idx}`} className="p-2 rounded-lg bg-white/5 border border-white/10">

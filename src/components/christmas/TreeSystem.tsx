@@ -14,13 +14,14 @@ const isMobile = (): boolean => {
     || window.innerWidth < 768;
 };
 
-// 性能配置 - 根据设备类型调整
+// 性能配置 - 根据设备类型调整（移动端保持视觉效果，仅微调）
 const getPerformanceConfig = () => {
   const mobile = isMobile();
   return {
-    particleCount: mobile ? 1500 : 4500,  // 移动端减少到1/3
-    lightCount: mobile ? 100 : 300,       // 移动端减少到1/3
-    enableCurl: !mobile,                   // 移动端禁用复杂的curl动画
+    particleCount: mobile ? 3500 : 4500,  // 移动端仅减少约22%
+    lightCount: mobile ? 250 : 300,       // 移动端仅减少约17%
+    enableCurl: true,                      // 保持curl动画效果
+    useMobileHtmlPhoto: mobile,            // 移动端使用HTML图片替代纹理
   };
 };
 
@@ -54,6 +55,30 @@ const projectColors: { [key: string]: string } = {
   '4': '#F57C00', // Smart - 橙色
 };
 
+// 图片尺寸缓存
+const imageDimensionsCache = new Map<string, { width: number; height: number }>();
+
+// 获取图片尺寸
+const getImageDimensions = (url: string): Promise<{ width: number; height: number }> => {
+  if (imageDimensionsCache.has(url)) {
+    return Promise.resolve(imageDimensionsCache.get(url)!);
+  }
+  
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const dims = { width: img.naturalWidth, height: img.naturalHeight };
+      imageDimensionsCache.set(url, dims);
+      resolve(dims);
+    };
+    img.onerror = () => {
+      // 默认 16:9 比例
+      resolve({ width: 16, height: 9 });
+    };
+    img.src = url;
+  });
+};
+
 const PolaroidPhoto: React.FC<{ 
   url: string; 
   position: THREE.Vector3; 
@@ -66,10 +91,21 @@ const PolaroidPhoto: React.FC<{
   onSelect: (url: string) => void 
 }> = ({ url, position, rotation, scale, id, shouldLoad, onSelect }) => {
   const [hovered, setHovered] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(16 / 9); // 默认 16:9
+  const mobile = useMemo(() => isMobile(), []);
   
   // 获取项目索引对应的颜色
   const projectIndex = id.split('-')[1] || '0';
   const projectColor = projectColors[projectIndex] || '#666666';
+
+  // 加载图片获取真实比例
+  useEffect(() => {
+    if (url) {
+      getImageDimensions(url).then(dims => {
+        setAspectRatio(dims.width / dims.height);
+      });
+    }
+  }, [url]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
@@ -78,10 +114,18 @@ const PolaroidPhoto: React.FC<{
     }
   };
 
-  const frameWidth = 1.6;
-  const frameHeight = 0.9;
-  const photoWidth = frameWidth * 0.9;
-  const photoHeight = frameHeight * 0.9;
+  // 根据图片比例计算框架尺寸
+  // 固定宽度，高度根据图片比例自适应
+  const baseWidth = 1.6; // 固定宽度
+  const frameWidth = baseWidth;
+  const frameHeight = baseWidth / aspectRatio; // 高度根据比例计算
+  
+  // 限制高度范围，避免极端比例
+  const clampedFrameHeight = Math.min(2.5, Math.max(0.6, frameHeight));
+  const actualFrameWidth = clampedFrameHeight === frameHeight ? frameWidth : clampedFrameHeight * aspectRatio;
+  
+  const photoWidth = actualFrameWidth * 0.92;
+  const photoHeight = clampedFrameHeight * 0.92;
 
   return (
     <group 
@@ -92,37 +136,66 @@ const PolaroidPhoto: React.FC<{
       onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
       onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
     >
-      {/* 相框背景 */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[frameWidth, frameHeight, 0.02]} />
-        <meshStandardMaterial 
-          color={hovered ? "#ffffee" : "#ffffff"} 
-          roughness={0.2} 
-          metalness={0.1} 
-        />
-      </mesh>
-      {/* 照片区域 - 正面 */}
-      <mesh position={[0, 0, 0.015]}>
-        <planeGeometry args={[photoWidth, photoHeight]} />
-        {shouldLoad && url ? (
-          <PhotoTextureMaterial url={url} fallbackColor={projectColor} />
-        ) : (
-          <meshBasicMaterial 
-            color={projectColor}
-          />
-        )}
-      </mesh>
-      {/* 照片区域 - 背面 */}
-      <mesh position={[0, 0, -0.015]} rotation={[0, Math.PI, 0]}>
-        <planeGeometry args={[photoWidth, photoHeight]} />
-        {shouldLoad && url ? (
-          <PhotoTextureMaterial url={url} fallbackColor={projectColor} />
-        ) : (
-          <meshBasicMaterial 
-            color={projectColor}
-          />
-        )}
-      </mesh>
+      {/* 移动端：使用 HTML 直接显示图片（带边框样式） */}
+      {mobile && shouldLoad && url ? (
+        <Html
+          position={[0, 0, 0.02]}
+          center
+          transform
+          distanceFactor={10}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div style={{
+            padding: '4px',
+            background: hovered ? '#ffffee' : '#ffffff',
+            borderRadius: '3px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}>
+            <img 
+              src={url} 
+              alt=""
+              style={{
+                width: '80px',  // 缩小图片
+                height: 'auto',
+                maxHeight: '100px',
+                objectFit: 'contain',
+                display: 'block',
+                borderRadius: '2px',
+              }}
+            />
+          </div>
+        </Html>
+      ) : (
+        <>
+          {/* 桌面端：相框背景 */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[actualFrameWidth + 0.08, clampedFrameHeight + 0.08, 0.02]} />
+            <meshStandardMaterial 
+              color={hovered ? "#ffffee" : "#ffffff"} 
+              roughness={0.2} 
+              metalness={0.1} 
+            />
+          </mesh>
+          {/* 桌面端：使用纹理材质 - 正面 */}
+          <mesh position={[0, 0, 0.015]}>
+            <planeGeometry args={[photoWidth, photoHeight]} />
+            {shouldLoad && url ? (
+              <PhotoTextureMaterial url={url} fallbackColor={projectColor} />
+            ) : (
+              <meshBasicMaterial color={projectColor} />
+            )}
+          </mesh>
+          {/* 桌面端：使用纹理材质 - 背面 */}
+          <mesh position={[0, 0, -0.015]} rotation={[0, Math.PI, 0]}>
+            <planeGeometry args={[photoWidth, photoHeight]} />
+            {shouldLoad && url ? (
+              <PhotoTextureMaterial url={url} fallbackColor={projectColor} />
+            ) : (
+              <meshBasicMaterial color={projectColor} />
+            )}
+          </mesh>
+        </>
+      )}
     </group>
   );
 };
@@ -293,7 +366,7 @@ const TreeSystem: React.FC = () => {
   // 获取性能配置（只在组件挂载时计算一次）
   const perfConfig = useMemo(() => {
     const config = getPerformanceConfig();
-    console.log('[TreeSystem] Performance config:', config, 'isMobile:', isMobile());
+    console.log(`[TreeSystem] 性能配置: 粒子=${config.particleCount}, 灯串=${config.lightCount}, HTML图片=${config.useMobileHtmlPhoto}`);
     return config;
   }, []);
 
@@ -313,10 +386,8 @@ const TreeSystem: React.FC = () => {
       foliageTree[i3] = Math.cos(angle) * coneRadius;
       foliageTree[i3 + 1] = h - 6;
       foliageTree[i3 + 2] = Math.sin(angle) * coneRadius;
-      // 移动端粒子稍大一些，弥补数量减少
-      sizes[i] = perfConfig.particleCount < 4500 
-        ? Math.random() * 2.5 + 1.0 
-        : Math.random() * 1.5 + 0.5;
+      // 粒子大小保持一致
+      sizes[i] = Math.random() * 1.5 + 0.5;
     }
 
     const lightCount = perfConfig.lightCount;
