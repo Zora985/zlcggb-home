@@ -7,6 +7,23 @@ import * as random from 'maath/random/dist/maath-random.esm';
 import type { Line2, LineSegments2 } from 'three-stdlib';
 import { TreeContext, ParticleData, TreeContextType } from './types';
 
+// 检测是否为移动设备
+const isMobile = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || window.innerWidth < 768;
+};
+
+// 性能配置 - 根据设备类型调整
+const getPerformanceConfig = () => {
+  const mobile = isMobile();
+  return {
+    particleCount: mobile ? 1500 : 4500,  // 移动端减少到1/3
+    lightCount: mobile ? 100 : 300,       // 移动端减少到1/3
+    enableCurl: !mobile,                   // 移动端禁用复杂的curl动画
+  };
+};
+
 const FoliageMaterial = shaderMaterial(
   { uTime: 0, uColor: new THREE.Color('#004225'), uColorAccent: new THREE.Color('#00fa9a'), uPixelRatio: 1 },
   `uniform float uTime; uniform float uPixelRatio; attribute float size; varying vec3 vPosition; varying float vBlink; vec3 curl(float x, float y, float z) { float eps=1.,n1,n2,a,b;x/=eps;y/=eps;z/=eps;vec3 curl=vec3(0.);n1=sin(y+cos(z+uTime));n2=cos(x+sin(z+uTime));curl.x=n1-n2;n1=sin(z+cos(x+uTime));n2=cos(y+sin(x+uTime));curl.z=n1-n2;n1=sin(x+cos(y+uTime));n2=cos(z+sin(y+uTime));curl.z=n1-n2;return curl*0.1; } void main() { vPosition=position; vec3 distortedPosition=position+curl(position.x,position.y,position.z); vec4 mvPosition=modelViewMatrix*vec4(distortedPosition,1.0); gl_Position=projectionMatrix*mvPosition; gl_PointSize=size*uPixelRatio*(60.0/-mvPosition.z); vBlink=sin(uTime*2.0+position.y*5.0+position.x); }`,
@@ -180,26 +197,32 @@ const PhotoTextureMaterial: React.FC<{ url: string; fallbackColor: string }> = (
   useEffect(() => {
     let cancelled = false;
     
-    loadTexture(url)
-      .then(tex => {
-        if (!cancelled) {
-          setTexture(tex);
-          setError(false);
-          // 强制更新材质
-          if (materialRef.current) {
-            materialRef.current.map = tex;
-            materialRef.current.needsUpdate = true;
+    // 移动端延迟加载纹理，避免初始渲染时阻塞
+    const delay = isMobile() ? 500 : 0;
+    
+    const timeoutId = setTimeout(() => {
+      loadTexture(url)
+        .then(tex => {
+          if (!cancelled) {
+            setTexture(tex);
+            setError(false);
+            // 强制更新材质
+            if (materialRef.current) {
+              materialRef.current.map = tex;
+              materialRef.current.needsUpdate = true;
+            }
           }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError(true);
-        }
-      });
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setError(true);
+          }
+        });
+    }, delay);
     
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [url]);
 
@@ -260,11 +283,22 @@ const TreeSystem: React.FC = () => {
   const treeRotation = useRef(0);
   const currentPan = useRef({ x: 0, y: 0 });
   const lineRef = useRef<Line2 | LineSegments2 | null>(null);
+  
+  // 预创建可复用的对象，避免每帧创建新对象导致GC压力
+  const dummyObject = useMemo(() => new THREE.Object3D(), []);
+  const tempVector = useMemo(() => new THREE.Vector3(), []);
 
   const [photoObjects, setPhotoObjects] = useState<{ id: string; url: string; ref: React.MutableRefObject<THREE.Group | null>; data: ParticleData; pos: THREE.Vector3; rot: THREE.Euler; scale: number; }[]>([]);
 
+  // 获取性能配置（只在组件挂载时计算一次）
+  const perfConfig = useMemo(() => {
+    const config = getPerformanceConfig();
+    console.log('[TreeSystem] Performance config:', config, 'isMobile:', isMobile());
+    return config;
+  }, []);
+
   const { foliageData, lightsData } = useMemo(() => {
-    const particleCount = 4500;
+    const particleCount = perfConfig.particleCount;
     const foliage = new Float32Array(particleCount * 3);
     const foliageChaos = new Float32Array(particleCount * 3);
     const foliageTree = new Float32Array(particleCount * 3);
@@ -279,10 +313,13 @@ const TreeSystem: React.FC = () => {
       foliageTree[i3] = Math.cos(angle) * coneRadius;
       foliageTree[i3 + 1] = h - 6;
       foliageTree[i3 + 2] = Math.sin(angle) * coneRadius;
-      sizes[i] = Math.random() * 1.5 + 0.5;
+      // 移动端粒子稍大一些，弥补数量减少
+      sizes[i] = perfConfig.particleCount < 4500 
+        ? Math.random() * 2.5 + 1.0 
+        : Math.random() * 1.5 + 0.5;
     }
 
-    const lightCount = 300;
+    const lightCount = perfConfig.lightCount;
     const lightChaos = new Float32Array(lightCount * 3);
     const lightTree = new Float32Array(lightCount * 3);
     const lSphere = random.inSphere(new Float32Array(lightCount * 3), { radius: 20 });
@@ -299,7 +336,7 @@ const TreeSystem: React.FC = () => {
     }
 
     return { foliageData: { current: foliage, chaos: foliageChaos, tree: foliageTree, sizes }, lightsData: { chaos: lightChaos, tree: lightTree, count: lightCount } };
-  }, []);
+  }, [perfConfig]);
 
   const photosData: ParticleData[] = useMemo(() => {
     const list = (photoConfigs || []).slice(0, 5);
@@ -413,14 +450,15 @@ const TreeSystem: React.FC = () => {
       let minDistance = Infinity;
       const SELECTION_THRESHOLD = 0.05;
 
+      // 复用 tempVector 进行计算
+      const checkVector = tempVector;
       photoObjects.forEach(obj => {
         if (!obj.ref.current) return;
-        const worldPos = new THREE.Vector3();
-        obj.ref.current.getWorldPosition(worldPos);
-        const screenPos = worldPos.clone().project(camera);
+        obj.ref.current.getWorldPosition(checkVector);
+        checkVector.project(camera);
 
-        if (screenPos.z < 1) {
-          const dist = Math.hypot(screenPos.x - ndcX, screenPos.y - ndcY);
+        if (checkVector.z < 1) {
+          const dist = Math.hypot(checkVector.x - ndcX, checkVector.y - ndcY);
           if (dist < SELECTION_THRESHOLD && dist < minDistance) {
             minDistance = dist;
             closestPhotoId = obj.data.image!;
@@ -498,7 +536,7 @@ const TreeSystem: React.FC = () => {
     }
 
     if (lightsRef.current) {
-      const dummy = new THREE.Object3D();
+      // 使用预创建的 dummy 对象，避免每帧创建新对象
       for (let i = 0; i < lightsData.count; i++) {
         const i3 = i * 3;
         const cx = lightsData.chaos[i3]; const cy = lightsData.chaos[i3 + 1]; const cz = lightsData.chaos[i3 + 2];
@@ -515,10 +553,10 @@ const TreeSystem: React.FC = () => {
         const cRotatedZ = cr * Math.sin(cAngle + treeRotation.current * 0.3);
         const fx = THREE.MathUtils.lerp(cRotatedX, r * Math.cos(currentAngle), ease);
         const fz = THREE.MathUtils.lerp(cRotatedZ, r * Math.sin(currentAngle), ease);
-        dummy.position.set(fx, y, fz);
-        dummy.scale.setScalar(1);
-        dummy.updateMatrix();
-        lightsRef.current.setMatrixAt(i, dummy.matrix);
+        dummyObject.position.set(fx, y, fz);
+        dummyObject.scale.setScalar(1);
+        dummyObject.updateMatrix();
+        lightsRef.current.setMatrixAt(i, dummyObject.matrix);
       }
       lightsRef.current.instanceMatrix.needsUpdate = true;
     }
@@ -571,19 +609,19 @@ const TreeSystem: React.FC = () => {
       obj.ref.current.rotation.z = THREE.MathUtils.lerp(chaosRot[2], treeRot[2], ease);
     });
 
-    // 更新连接线的点位置
+    // 更新连接线的点位置 - 使用扁平数组避免创建 Vector3 对象
     if (lineRef.current && state === 'FORMED') {
-      const points: THREE.Vector3[] = [];
+      const positions: number[] = [];
       photoObjects.forEach(obj => {
         if (obj.ref.current) {
           const pos = obj.ref.current.position;
-          points.push(new THREE.Vector3(pos.x, pos.y, pos.z));
+          positions.push(pos.x, pos.y, pos.z);
         }
       });
-      if (points.length >= 2) {
+      if (positions.length >= 6) { // 至少2个点
         const line = lineRef.current;
         const geom = (line as unknown as { geometry?: { setPositions?: (positions: number[]) => void } })?.geometry;
-        geom?.setPositions?.(points.flatMap((p) => [p.x, p.y, p.z]));
+        geom?.setPositions?.(positions);
       }
     }
 
@@ -604,7 +642,7 @@ const TreeSystem: React.FC = () => {
       // 单指模式（pointer 有值）时暂停；打开弹窗时也暂停
       setPausedByVision(!!pointer || !!selectedPhotoUrl);
 
-      // 计算当前指向的照片
+      // 计算当前指向的照片 - 使用预创建的 tempVector 避免 GC
       let targetId: string | null = null;
       let minDist = Infinity;
       if (pointer && photoObjects.length > 0) {
@@ -612,12 +650,11 @@ const TreeSystem: React.FC = () => {
         const ndcY = -(pointer.y * 2) + 1;
         for (const obj of photoObjects) {
           if (!obj.ref.current) continue;
-          const worldPos = new THREE.Vector3();
-          obj.ref.current.getWorldPosition(worldPos);
-          const screenPos = worldPos.clone().project(camera);
-          if (screenPos.z >= 1) continue;
+          obj.ref.current.getWorldPosition(tempVector);
+          tempVector.project(camera);
+          if (tempVector.z >= 1) continue;
 
-          const dist = Math.hypot(screenPos.x - ndcX, screenPos.y - ndcY);
+          const dist = Math.hypot(tempVector.x - ndcX, tempVector.y - ndcY);
           if (dist < SELECTION_THRESHOLD && dist < minDist) {
             minDist = dist;
             targetId = obj.data.image!;

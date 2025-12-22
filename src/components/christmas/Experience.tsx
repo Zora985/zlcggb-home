@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useRef, useEffect, useState, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Stars, Sparkles } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
@@ -7,6 +7,13 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import TreeSystem from './TreeSystem';
 import CrystalOrnaments from './CrystalOrnaments';
 import { TreeContext, TreeContextType } from './types';
+
+// 检测是否为移动设备
+const isMobile = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || window.innerWidth < 768;
+};
 
 // 相机控制器组件
 const CameraController = () => {
@@ -359,10 +366,13 @@ const CameraController = () => {
 };
 
 const Experience: React.FC = () => {
+  // 移动端性能优化配置
+  const mobile = useMemo(() => isMobile(), []);
+  
   return (
     <Canvas
-      shadows
-      dpr={[1, 1.5]}
+      shadows={!mobile} // 移动端禁用阴影
+      dpr={mobile ? [1, 1] : [1, 1.5]} // 移动端降低分辨率
       camera={{ position: [0, 0, 18], fov: 45, near: 0.1, far: 100 }}
       gl={{
         antialias: false,
@@ -391,35 +401,43 @@ const Experience: React.FC = () => {
         penumbra={1}
         intensity={8}
         color="#fff0dd"
-        castShadow
+        castShadow={!mobile}
       />
       <pointLight position={[-10, -5, -10]} intensity={3} color="#004225" />
       <pointLight position={[0, 0, 0]} intensity={1} color="#ffaa00" distance={10} />
 
-      <Stars radius={50} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={200} scale={25} size={4} speed={0.3} opacity={0.6} color="#ffd700" />
-      <Sparkles count={150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
-      <Sparkles count={150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
+      {/* 星空和闪烁 - 移动端减少数量 */}
+      <Stars radius={50} depth={50} count={mobile ? 800 : 2000} factor={4} saturation={0} fade speed={1} />
+      <Sparkles count={mobile ? 80 : 200} scale={25} size={mobile ? 5 : 4} speed={0.3} opacity={0.6} color="#ffd700" />
+      {!mobile && (
+        <>
+          <Sparkles count={150} scale={30} size={3} speed={0.2} opacity={0.4} color="#ffffcc" />
+          <Sparkles count={150} scale={20} size={2.5} speed={0.5} opacity={0.5} color="#ffffff" />
+        </>
+      )}
 
-      <Environment preset="city" />
+      {/* Environment 延迟加载 - 移动端禁用 */}
+      {!mobile && <Environment preset="city" />}
 
       <group position={[0, -2, 0]}>
         <TreeSystem />
+        {/* 水晶装饰 - 移动端可选禁用（如果仍卡顿） */}
         <CrystalOrnaments />
       </group>
 
       <CameraController />
 
+      {/* 后处理效果 - 移动端简化 */}
       <EffectComposer disableNormalPass>
         <Bloom
           luminanceThreshold={1.0}
           mipmapBlur
-          intensity={0.5}
-          radius={0.3}
-          levels={6}
+          intensity={mobile ? 0.3 : 0.5}
+          radius={mobile ? 0.2 : 0.3}
+          levels={mobile ? 4 : 6}
         />
-        <Noise opacity={0.03} />
-        <Vignette eskil={false} offset={0.1} darkness={0.8} />
+        {!mobile && <Noise opacity={0.03} />}
+        <Vignette eskil={false} offset={0.1} darkness={mobile ? 0.5 : 0.8} />
       </EffectComposer>
     </Canvas>
   );

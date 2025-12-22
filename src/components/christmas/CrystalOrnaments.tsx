@@ -3,6 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TreeContext, TreeContextType } from './types';
 
+// 检测是否为移动设备
+const isMobile = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || window.innerWidth < 768;
+};
+
 const CrystalOrnaments: React.FC = () => {
   const { state, rotationSpeed, panOffset } = useContext(TreeContext) as TreeContextType;
   const groupRef = useRef<THREE.Group>(null);
@@ -10,8 +17,11 @@ const CrystalOrnaments: React.FC = () => {
   const treeRotation = useRef(0);
   const currentPan = useRef({ x: 0, y: 0 });
 
+  // 移动端减少装饰品数量
+  const mobile = useMemo(() => isMobile(), []);
+
   const ornaments = useMemo(() => {
-    const count = 50;
+    const count = mobile ? 20 : 50; // 移动端减少到 20 个
     const items = [];
     const colors = ['#D32F2F', '#FFD700', '#2E7D32'];
 
@@ -44,7 +54,7 @@ const CrystalOrnaments: React.FC = () => {
       });
     }
     return items;
-  }, []);
+  }, [mobile]);
 
   useFrame((state3d, delta) => {
     const targetProgress = state === 'FORMED' ? 1 : 0;
@@ -111,15 +121,16 @@ const CrystalOrnaments: React.FC = () => {
   return (
     <group ref={groupRef}>
       {ornaments.map((o, i) => (
-        <mesh key={i} scale={o.scale * 0.7} castShadow receiveShadow>
-          {o.type === 'sphere' && <sphereGeometry args={[1, 16, 16]} />}
+        <mesh key={i} scale={o.scale * (mobile ? 0.9 : 0.7)} castShadow={!mobile} receiveShadow={!mobile}>
+          {/* 移动端使用更低面数的几何体 */}
+          {o.type === 'sphere' && <sphereGeometry args={[1, mobile ? 8 : 16, mobile ? 8 : 16]} />}
           {o.type === 'box' && <boxGeometry args={[1, 1, 1]} />}
           <meshStandardMaterial
             color={o.color}
             roughness={0.4}
             metalness={0.3}
             emissive={o.color}
-            emissiveIntensity={0.3}
+            emissiveIntensity={mobile ? 0.5 : 0.3}
             transparent
             opacity={0.85}
           />

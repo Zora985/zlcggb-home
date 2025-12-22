@@ -1,14 +1,128 @@
-import React, { useState, Suspense, useContext, useEffect } from 'react';
+import React, { useState, Suspense, useContext, useEffect, useCallback } from 'react';
 import { TreeContext, TreeContextType, AppState, PointerCoords, CameraViewType, EditablePhotoConfig } from './christmas/types';
-import Experience from './christmas/Experience';
 import TechEffects from './christmas/TechEffects';
 import ControlPanel from './christmas/ControlPanel';
 import { DEFAULT_PHOTOS, DEFAULT_SUBTITLE_CHAOS, DEFAULT_SUBTITLE_FORMED, DEFAULT_TITLE } from './christmas/defaultContent';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Maximize2, Minimize2 } from 'lucide-react';
 
+// 🚀 核心优化：懒加载 Experience（Three.js 相关内容体积大）
+const LazyExperience = React.lazy(() => import('./christmas/Experience'));
+
 // 视觉识别模块：仅在用户开启后才动态加载（模型/wasm 体积大）
 const LazyGestureInput = React.lazy(() => import('./christmas/GestureInput'));
+
+// 🎄 圣诞树加载动画 - 纯 CSS 实现，秒开无延迟
+const ChristmasLoadingScreen: React.FC<{ progress?: number }> = ({ progress = 0 }) => {
+  return (
+    <div className="absolute inset-0 bg-gradient-to-b from-[#0a1628] via-[#0d1f3c] to-[#071018] flex flex-col items-center justify-center">
+      {/* 星空背景 */}
+      <div className="absolute inset-0 overflow-hidden">
+        {[...Array(50)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-white animate-pulse"
+            style={{
+              width: Math.random() * 3 + 1 + 'px',
+              height: Math.random() * 3 + 1 + 'px',
+              left: Math.random() * 100 + '%',
+              top: Math.random() * 100 + '%',
+              animationDelay: Math.random() * 2 + 's',
+              animationDuration: Math.random() * 2 + 1 + 's',
+              opacity: Math.random() * 0.8 + 0.2,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* 圣诞树 SVG 动画 */}
+      <div className="relative z-10 mb-8">
+        <svg width="120" height="150" viewBox="0 0 120 150" className="drop-shadow-[0_0_30px_rgba(34,197,94,0.5)]">
+          {/* 树干 */}
+          <rect x="50" y="120" width="20" height="25" fill="#5D4037" rx="2" />
+          
+          {/* 树的三层 - 从下到上 */}
+          <polygon 
+            points="60,10 15,60 105,60" 
+            fill="#166534"
+            className="animate-pulse"
+            style={{ animationDuration: '2s' }}
+          />
+          <polygon 
+            points="60,35 25,85 95,85" 
+            fill="#15803d"
+            className="animate-pulse"
+            style={{ animationDuration: '2.2s', animationDelay: '0.2s' }}
+          />
+          <polygon 
+            points="60,55 30,115 90,115" 
+            fill="#22c55e"
+            className="animate-pulse"
+            style={{ animationDuration: '2.4s', animationDelay: '0.4s' }}
+          />
+          
+          {/* 星星 */}
+          <polygon 
+            points="60,0 63,8 72,8 65,13 68,22 60,17 52,22 55,13 48,8 57,8" 
+            fill="#fbbf24"
+            className="animate-spin"
+            style={{ 
+              transformOrigin: '60px 11px',
+              animationDuration: '8s'
+            }}
+          />
+          
+          {/* 装饰球 */}
+          <circle cx="45" cy="70" r="5" fill="#ef4444" className="animate-pulse" />
+          <circle cx="75" cy="75" r="5" fill="#3b82f6" className="animate-pulse" style={{ animationDelay: '0.3s' }} />
+          <circle cx="55" cy="95" r="5" fill="#fbbf24" className="animate-pulse" style={{ animationDelay: '0.6s' }} />
+          <circle cx="70" cy="100" r="5" fill="#a855f7" className="animate-pulse" style={{ animationDelay: '0.9s' }} />
+          <circle cx="40" cy="105" r="4" fill="#22d3ee" className="animate-pulse" style={{ animationDelay: '1.2s' }} />
+          <circle cx="80" cy="90" r="4" fill="#f97316" className="animate-pulse" style={{ animationDelay: '1.5s' }} />
+        </svg>
+      </div>
+
+      {/* 标题 */}
+      <h1 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-green-300 to-amber-200 mb-4 z-10">
+        ✨ Merry Christmas ✨
+      </h1>
+
+      {/* 加载进度 */}
+      <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden z-10 mb-3">
+        <motion.div
+          className="h-full bg-gradient-to-r from-red-500 via-green-500 to-amber-500 rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.max(progress, 10)}%` }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        />
+      </div>
+
+      {/* 加载提示 */}
+      <p className="text-white/60 text-sm z-10 animate-pulse">
+        {progress < 30 ? '🎄 正在准备魔法...' : progress < 70 ? '❄️ 装饰圣诞树中...' : '🌟 即将呈现...'}
+      </p>
+
+      {/* 雪花 */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={`snow-${i}`}
+            className="absolute text-white/40 animate-bounce"
+            style={{
+              left: Math.random() * 100 + '%',
+              top: -20,
+              fontSize: Math.random() * 12 + 8 + 'px',
+              animationDuration: Math.random() * 3 + 2 + 's',
+              animationDelay: Math.random() * 2 + 's',
+            }}
+          >
+            ❄
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // 图片预加载缓存
 const imageCache = new Map<string, HTMLImageElement>();
@@ -119,19 +233,56 @@ const ChristmasContent: React.FC<{
     TreeContext
   ) as TreeContextType;
 
-  // 预加载所有项目图片
+  // 🚀 渐进式加载：先显示加载界面，延迟加载 3D 场景
+  const [loadingPhase, setLoadingPhase] = useState<'splash' | 'loading' | 'ready'>('splash');
+  const [loadProgress, setLoadProgress] = useState(0);
+
   useEffect(() => {
+    // Phase 1: 显示闪屏 300ms（让页面秒开）
+    const splashTimer = setTimeout(() => {
+      setLoadingPhase('loading');
+      setLoadProgress(20);
+    }, 300);
+
+    // Phase 2: 模拟加载进度
+    const progressInterval = setInterval(() => {
+      setLoadProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+
+    // Phase 3: 延迟 800ms 后开始加载 3D（给浏览器喘息时间）
+    const loadTimer = setTimeout(() => {
+      setLoadProgress(100);
+      // 再等 200ms 让进度条动画完成
+      setTimeout(() => {
+        setLoadingPhase('ready');
+      }, 200);
+    }, 800);
+
+    return () => {
+      clearTimeout(splashTimer);
+      clearTimeout(loadTimer);
+      clearInterval(progressInterval);
+    };
+  }, []);
+
+  // 预加载所有项目图片（在 3D 加载完成后再预加载图片）
+  useEffect(() => {
+    if (loadingPhase !== 'ready') return;
+    
     const photoUrls = DEFAULT_PHOTOS.map((p) => p.url);
     
-    // 延迟预加载，不阻塞首屏
+    // 延迟预加载，不阻塞 3D 渲染
     const timer = setTimeout(() => {
       photoUrls.forEach((url, index) => {
         setTimeout(() => preloadImage(url), index * 300);
       });
-    }, 1500);
+    }, 2000);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [loadingPhase]);
 
   // 全屏样式
   const fullscreenStyle = isFullscreen
@@ -168,17 +319,17 @@ const ChristmasContent: React.FC<{
         </Suspense>
       )}
 
-      {/* 3D 场景层 */}
+      {/* 3D 场景层 - 渐进式加载 */}
       <div className="absolute inset-0 z-10">
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center h-full text-red-400 animate-pulse text-2xl">
-              🎄 Loading Christmas Magic... ❄️
-            </div>
-          }
-        >
-          <Experience />
-        </Suspense>
+        {loadingPhase !== 'ready' ? (
+          // 加载动画（纯 CSS，秒开）
+          <ChristmasLoadingScreen progress={loadProgress} />
+        ) : (
+          // 3D 场景（懒加载）
+          <Suspense fallback={<ChristmasLoadingScreen progress={95} />}>
+            <LazyExperience />
+          </Suspense>
+        )}
       </div>
 
       {/* 科技感特效层 */}
