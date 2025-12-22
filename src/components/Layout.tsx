@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Github, Mail } from 'lucide-react';
 
 // B站图标组件
@@ -11,7 +12,6 @@ const BilibiliIcon = ({ size = 16 }: { size?: number }) => (
 interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
-  onNavigate: (page: string) => void;
 }
 
 // 融合型 Logo - 齿轮 + 代码标签
@@ -62,9 +62,10 @@ const FusionLogo = ({ className = "", isDark = false }: { className?: string; is
   </svg>
 );
 
-export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+export default function Layout({ children, currentPage }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
   
   // 判断是否是圣诞树页面
   const isChristmasPage = currentPage === 'christmas';
@@ -99,32 +100,36 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
         <div className="max-w-[980px] mx-auto px-6">
           <div className="flex items-center justify-between h-12">
             {/* Logo */}
-            <div 
+            <Link 
+              to="/"
               className="cursor-pointer hover:opacity-80 transition-opacity duration-300"
-              onClick={() => onNavigate('home')}
             >
               <FusionLogo isDark={isChristmasPage} />
-            </div>
+            </Link>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={`text-xs font-medium transition-all duration-300 ${
-                    isChristmasPage
-                      ? currentPage === item.id
-                        ? 'text-green-400'
-                        : 'text-gray-400 hover:text-green-300'
-                      : currentPage === item.id
-                        ? 'text-apple-gray-600'
-                        : 'text-apple-gray-500 hover:text-apple-gray-600'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
+              {navItems.map((item) => {
+                const path = item.id === 'home' ? '/' : `/${item.id}`;
+                const isActive = location.pathname === path;
+                return (
+                  <Link
+                    key={item.id}
+                    to={path}
+                    className={`text-xs font-medium transition-all duration-300 ${
+                      isChristmasPage
+                        ? isActive
+                          ? 'text-green-400'
+                          : 'text-gray-400 hover:text-green-300'
+                        : isActive
+                          ? 'text-apple-gray-600'
+                          : 'text-apple-gray-500 hover:text-apple-gray-600'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
               <a
                 href="https://github.com/zlcggb/zlcggb-home"
                 target="_blank"
@@ -160,26 +165,28 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                 : 'glass border-t border-apple-gray-200/50'
             }`}>
               <div className="py-4 space-y-1">
-                {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onNavigate(item.id);
-                      setIsMenuOpen(false);
-                    }}
-                    className={`block w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                      isChristmasPage
-                        ? currentPage === item.id
-                          ? 'text-green-400 bg-green-500/10'
-                          : 'text-gray-300 hover:bg-white/5'
-                        : currentPage === item.id
-                          ? 'text-apple-blue bg-apple-blue/5'
-                          : 'text-apple-gray-600 hover:bg-apple-gray-200/50'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                {navItems.map((item) => {
+                  const path = item.id === 'home' ? '/' : `/${item.id}`;
+                  const isActive = location.pathname === path;
+                  return (
+                    <Link
+                      key={item.id}
+                      to={path}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`block w-full text-left px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                        isChristmasPage
+                          ? isActive
+                            ? 'text-green-400 bg-green-500/10'
+                            : 'text-gray-300 hover:bg-white/5'
+                          : isActive
+                            ? 'text-apple-blue bg-apple-blue/5'
+                            : 'text-apple-gray-600 hover:bg-apple-gray-200/50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
                 <div className="px-4 pt-2 flex items-center gap-4">
                   <a
                     href="https://github.com/zlcggb/zlcggb-home"

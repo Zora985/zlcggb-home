@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Wrench, Code, Share2, Heart, Target, Lightbulb, PenTool, FlaskConical, ArrowRight } from 'lucide-react';
-
-interface HomePageProps {
-  onNavigate: (page: string) => void;
-}
 
 // 动态齿轮 SVG 组件
 const GearIcon = ({ size = 80, className = "" }: { size?: number; className?: string }) => (
@@ -23,12 +20,19 @@ const GearIcon = ({ size = 80, className = "" }: { size?: number; className?: st
   </svg>
 );
 
-export default function HomePage({ onNavigate }: HomePageProps) {
+export default function HomePage() {
+  const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  const handleNavigate = (page: string) => {
+    const path = page === 'home' ? '/' : `/${page}`;
+    navigate(path);
+    window.scrollTo(0, 0);
+  };
 
   // 设计思维五步法
   const designThinking = [
@@ -101,14 +105,14 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
           }`}>
             <button
-              onClick={() => onNavigate('portfolio')}
+              onClick={() => handleNavigate('portfolio')}
               className="apple-button apple-button-primary group"
             >
               查看工程作品
               <ChevronRight className="ml-1 group-hover:translate-x-1 transition-transform" size={18} />
             </button>
             <button
-              onClick={() => onNavigate('timeline')}
+              onClick={() => handleNavigate('timeline')}
               className="apple-button apple-button-secondary group"
             >
               阅读转行故事
@@ -315,7 +319,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             查看我的作品集，了解更多关于我的故事
           </p>
           <button
-            onClick={() => onNavigate('portfolio')}
+            onClick={() => handleNavigate('portfolio')}
             className="apple-button apple-button-primary group"
           >
             开始探索

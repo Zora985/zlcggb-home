@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, Wrench, Code, Award, Microscope, Car } from 'lucide-react';
 
+type ProjectType = {
+  title: string;
+  subtitle: string;
+  year: string;
+  tags: string[];
+  description: string;
+  highlights: string[];
+  image: string;
+  type: 'mechanical' | 'software';
+  icon: JSX.Element;
+  tech?: string;
+  link?: string;
+};
+
 export default function PortfolioPage() {
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'mechanical' | 'software'>('all');
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectType | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
-  const mechanicalProjects = [
+  const mechanicalProjects: ProjectType[] = [
     {
       title: "机创大赛 - 仿生机械蝎子",
       subtitle: "第十届全国大学生机械创新设计大赛",
@@ -61,7 +75,7 @@ export default function PortfolioPage() {
     }
   ];
 
-  const softwareProjects = [
+  const softwareProjects: ProjectType[] = [
     {
       title: "Unilumin 官网会员中心",
       subtitle: "企业级会员服务平台",
@@ -131,14 +145,16 @@ export default function PortfolioPage() {
           isVisible ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-8'
         }`}>
           <div className="inline-flex bg-apple-gray-200/60 rounded-full p-1">
-            {[
-              { id: 'all', label: '全部', count: allProjects.length },
-              { id: 'mechanical', label: '机械设计', count: mechanicalProjects.length, icon: <Wrench size={14} /> },
-              { id: 'software', label: '软件开发', count: softwareProjects.length, icon: <Code size={14} /> }
-            ].map((tab) => (
+            {(
+              [
+                { id: 'all', label: '全部', count: allProjects.length, icon: undefined },
+                { id: 'mechanical', label: '机械设计', count: mechanicalProjects.length, icon: <Wrench size={14} /> },
+                { id: 'software', label: '软件开发', count: softwareProjects.length, icon: <Code size={14} /> },
+              ] as { id: 'all' | 'mechanical' | 'software'; label: string; count: number; icon?: JSX.Element }[]
+            ).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                   activeTab === tab.id
                     ? 'bg-white text-apple-gray-600 shadow-sm'

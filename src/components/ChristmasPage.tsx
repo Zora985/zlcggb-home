@@ -1,10 +1,14 @@
 import React, { useState, Suspense, useContext, useEffect } from 'react';
-import { TreeContext, TreeContextType, AppState, PointerCoords, CameraViewType } from './christmas/types';
+import { TreeContext, TreeContextType, AppState, PointerCoords, CameraViewType, EditablePhotoConfig } from './christmas/types';
 import Experience from './christmas/Experience';
 import TechEffects from './christmas/TechEffects';
 import ControlPanel from './christmas/ControlPanel';
+import { DEFAULT_PHOTOS, DEFAULT_SUBTITLE_CHAOS, DEFAULT_SUBTITLE_FORMED, DEFAULT_TITLE } from './christmas/defaultContent';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Maximize2, Minimize2 } from 'lucide-react';
+
+// 视觉识别模块：仅在用户开启后才动态加载（模型/wasm 体积大）
+const LazyGestureInput = React.lazy(() => import('./christmas/GestureInput'));
 
 // 图片预加载缓存
 const imageCache = new Map<string, HTMLImageElement>();
@@ -100,19 +104,24 @@ const ChristmasContent: React.FC<{
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
 }> = ({ isFullscreen, onToggleFullscreen }) => {
-  const { state, selectedPhotoUrl, setSelectedPhotoUrl, showTitle } = useContext(
+  const {
+    state,
+    selectedPhotoUrl,
+    setSelectedPhotoUrl,
+    showTitle,
+    webcamEnabled,
+    pointer,
+    hoverProgress,
+    customTitle,
+    customSubtitleChaos,
+    customSubtitleFormed,
+  } = useContext(
     TreeContext
   ) as TreeContextType;
 
   // 预加载所有项目图片
   useEffect(() => {
-    const photoUrls = [
-      '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886689-蝎子.png',
-      '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886689-医疗.png',
-      '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886688-车.png',
-      '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765716162171-vip.png',
-      '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765716162170-smart.png',
-    ];
+    const photoUrls = DEFAULT_PHOTOS.map((p) => p.url);
     
     // 延迟预加载，不阻塞首屏
     const timer = setTimeout(() => {
@@ -144,6 +153,21 @@ const ChristmasContent: React.FC<{
       className="relative w-full bg-black text-white overflow-hidden"
       style={fullscreenStyle}
     >
+      {/* 视觉识别层：默认不加载，仅开启后加载并启动 */}
+      {webcamEnabled && (
+        <Suspense
+          fallback={
+            <div className="fixed left-4 bottom-4 z-[60] pointer-events-none">
+              <div className="px-3 py-2 rounded-lg bg-black/50 backdrop-blur border border-white/10 text-xs text-white/80">
+                视觉识别模块加载中…
+              </div>
+            </div>
+          }
+        >
+          <LazyGestureInput />
+        </Suspense>
+      )}
+
       {/* 3D 场景层 */}
       <div className="absolute inset-0 z-10">
         <Suspense
@@ -166,12 +190,15 @@ const ChristmasContent: React.FC<{
           {/* 标题部分 - 受 showTitle 控制 */}
           <div className="transition-opacity duration-500" style={{ opacity: showTitle ? 1 : 0 }}>
             <h1 className="text-3xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-300 via-green-200 to-amber-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]">
-              🎄 CHRISTMAS MEMORIES ❄️
+              {customTitle}
             </h1>
             <p className="text-red-400/80 tracking-widest text-xs mt-2">
-              {state === 'CHAOS'
-                ? '✨ SCATTERED MEMORIES'
-                : '🎁 MEMORY TREE // TIMELINE OF LOVE'}
+              <span className="inline-flex items-center gap-2">
+                <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10 text-white/60 text-[10px] tracking-normal">
+                  {state === 'CHAOS' ? '星尘' : '成树'}
+                </span>
+                <span>{state === 'CHAOS' ? customSubtitleChaos : customSubtitleFormed}</span>
+              </span>
             </p>
           </div>
 
@@ -190,14 +217,57 @@ const ChristmasContent: React.FC<{
           <ControlPanel />
         </div>
 
+        {/* 视觉识别指针（便于理解“指向/停留”是否生效） */}
+        {webcamEnabled && pointer && (
+          <div
+            className="fixed z-[90] pointer-events-none"
+            style={{
+              left: `${pointer.x * 100}%`,
+              top: `${pointer.y * 100}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <div className="relative">
+              <div className="w-3 h-3 rounded-full bg-emerald-300 shadow-[0_0_16px_rgba(52,211,153,0.8)]" />
+              <svg className="absolute -inset-6 w-12 h-12 -rotate-90 overflow-visible">
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="18"
+                  fill="none"
+                  stroke="rgba(52,211,153,0.8)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 18}
+                  strokeDashoffset={(2 * Math.PI * 18) * (1 - hoverProgress)}
+                  className="transition-[stroke-dashoffset] duration-75 ease-linear"
+                />
+              </svg>
+            </div>
+          </div>
+        )}
+
         {/* 底部提示 - 受 showTitle 控制 */}
         <div 
           className="flex justify-between items-end transition-opacity duration-500" 
           style={{ opacity: showTitle ? 1 : 0 }}
         >
           <div className="text-white/50 text-xs">
-            <span className="hidden md:inline">🖱️ 拖拽旋转 | 滚轮缩放 | 点击照片查看大图</span>
-            <span className="md:hidden">👆 拖拽旋转 | 双指缩放 | 点击照片查看大图</span>
+            {webcamEnabled ? (
+              <>
+                <span className="hidden md:inline">
+                  👉 单指指向：暂停/对准 | ⏱️ 指向照片停留1秒：打开 | ⏱️ 打开2秒：自动关闭 | 🧊 冷却3秒（需移开再触发）
+                </span>
+                <span className="md:hidden">
+                  👉 指向暂停 | 停留1秒打开 | 2秒后自动关 | 冷却3秒
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="hidden md:inline">🖱️ 拖拽旋转 | 滚轮缩放 | 点击照片查看大图</span>
+                <span className="md:hidden">👆 拖拽旋转 | 双指缩放 | 点击照片查看大图</span>
+              </>
+            )}
           </div>
 
           {/* 全屏模式退出提示 - 右下角 - 仅桌面端显示 */}
@@ -234,10 +304,22 @@ const ChristmasContent: React.FC<{
 };
 
 const ChristmasPage: React.FC = () => {
+  const EDIT_CACHE_KEY = 'christmas_edit_cache_v1';
+  const DEFAULT_ROTATION_SPEED = 0.3;
+  const AUTO_PLAY_ROTATION_SPEED = 2;
+
   const [state, setState] = useState<AppState>('FORMED');
-  const [rotationSpeed, setRotationSpeed] = useState<number>(0.3);
+  const [rotationSpeed, setRotationSpeed] = useState<number>(DEFAULT_ROTATION_SPEED);
   const [rotationBoost, setRotationBoost] = useState<number>(0);
   const [webcamEnabled, setWebcamEnabled] = useState<boolean>(false);
+  const [gestureStream, setGestureStream] = useState<MediaStream | null>(null);
+  const [showGesturePreview, setShowGesturePreview] = useState<boolean>(true);
+  const [customTitle, setCustomTitle] = useState<string>(DEFAULT_TITLE);
+  const [customSubtitleFormed, setCustomSubtitleFormed] = useState<string>(DEFAULT_SUBTITLE_FORMED);
+  const [customSubtitleChaos, setCustomSubtitleChaos] = useState<string>(DEFAULT_SUBTITLE_CHAOS);
+  const [photoConfigs, setPhotoConfigs] = useState<EditablePhotoConfig[]>(() =>
+    DEFAULT_PHOTOS.map((p) => ({ ...p }))
+  );
   const [pointer, setPointer] = useState<PointerCoords | null>(null);
   const [hoverProgress, setHoverProgress] = useState<number>(0);
   const [clickTrigger, setClickTrigger] = useState<number>(0);
@@ -255,6 +337,15 @@ const ChristmasPage: React.FC = () => {
   const [showText, setShowText] = useState<boolean>(true);
   const [showTitle, setShowTitle] = useState<boolean>(true);
   const [photoTargets, setPhotoTargets] = useState<{ id: string; pos: [number, number, number]; rot: [number, number, number] }[]>([]);
+
+  // 自动播放：加快树旋转，停止后回到默认速度（避免用户感知“越播越慢/越播越晕”）
+  useEffect(() => {
+    if (autoPlay) {
+      setRotationSpeed(AUTO_PLAY_ROTATION_SPEED);
+    } else {
+      setRotationSpeed(DEFAULT_ROTATION_SPEED);
+    }
+  }, [AUTO_PLAY_ROTATION_SPEED, DEFAULT_ROTATION_SPEED, autoPlay]);
   
   // 树旋转控制
   const [isRotationPaused, setIsRotationPaused] = useState<boolean>(false);
@@ -271,6 +362,72 @@ const ChristmasPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen]);
 
+  // 编辑缓存：保存到 sessionStorage；刷新清空（beforeunload 清理）
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(EDIT_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          customTitle?: string;
+          customSubtitleFormed?: string;
+          customSubtitleChaos?: string;
+          photoConfigs?: EditablePhotoConfig[];
+        };
+        if (typeof parsed.customTitle === 'string') setCustomTitle(parsed.customTitle);
+        if (typeof parsed.customSubtitleFormed === 'string') setCustomSubtitleFormed(parsed.customSubtitleFormed);
+        if (typeof parsed.customSubtitleChaos === 'string') setCustomSubtitleChaos(parsed.customSubtitleChaos);
+        if (Array.isArray(parsed.photoConfigs) && parsed.photoConfigs.length > 0) {
+          // 规范化：确保 5 张，并对缺失字段回退到默认值
+          const normalized: EditablePhotoConfig[] = DEFAULT_PHOTOS.map((d, i) => {
+            const item = parsed.photoConfigs?.[i];
+            return {
+              id: typeof item?.id === 'string' ? item.id : d.id,
+              url: typeof item?.url === 'string' && item.url ? item.url : d.url,
+              title: typeof item?.title === 'string' ? item.title : d.title,
+            };
+          });
+          setPhotoConfigs(normalized);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const clearOnReload = () => {
+      try {
+        sessionStorage.removeItem(EDIT_CACHE_KEY);
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('beforeunload', clearOnReload);
+    return () => window.removeEventListener('beforeunload', clearOnReload);
+  }, [EDIT_CACHE_KEY]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        EDIT_CACHE_KEY,
+        JSON.stringify({ customTitle, customSubtitleFormed, customSubtitleChaos, photoConfigs })
+      );
+    } catch {
+      // ignore（超出容量时不阻塞功能）
+    }
+  }, [customSubtitleChaos, customSubtitleFormed, customTitle, photoConfigs]);
+
+  // 关键：关闭视觉识别时，强制释放摄像头（即使 lazy 组件卸载的清理有延迟）
+  useEffect(() => {
+    if (!webcamEnabled) {
+      if (gestureStream) {
+        gestureStream.getTracks().forEach((t) => t.stop());
+        setGestureStream(null);
+      }
+      // 同时清理指针/进度，避免残留 UI
+      setPointer(null);
+      setHoverProgress(0);
+    }
+  }, [gestureStream, webcamEnabled]);
+
   return (
     <TreeContext.Provider
       value={{
@@ -280,6 +437,18 @@ const ChristmasPage: React.FC = () => {
         setRotationSpeed,
         webcamEnabled,
         setWebcamEnabled,
+        gestureStream,
+        setGestureStream,
+        showGesturePreview,
+        setShowGesturePreview,
+        customTitle,
+        setCustomTitle,
+        customSubtitleFormed,
+        setCustomSubtitleFormed,
+        customSubtitleChaos,
+        setCustomSubtitleChaos,
+        photoConfigs,
+        setPhotoConfigs,
         pointer,
         setPointer,
         hoverProgress,

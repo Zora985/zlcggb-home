@@ -1,0 +1,8 @@
+# Netlify/Vercel redirects for React Router
+# This ensures that all routes are handled by the React app
+
+# Handle specific routes with query parameters
+/contact* /index.html 200
+ 
+# Catch-all for other routes
+/* /index.html 200 

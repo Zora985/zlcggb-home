@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Code, Rocket, Monitor, Award, Microscope, Car } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Code, Rocket, Monitor, Award, Microscope, Car } from 'lucide-react';
 
 export default function TimelinePage() {
   const [isVisible, setIsVisible] = useState(false);

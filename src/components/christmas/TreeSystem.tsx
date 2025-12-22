@@ -1,8 +1,10 @@
 import React, { useRef, useMemo, useContext, useState, useEffect } from 'react';
+import type { ReactThreeFiber, ThreeEvent } from '@react-three/fiber';
 import { useFrame, extend, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { shaderMaterial, Text, Line } from '@react-three/drei';
+import { shaderMaterial, Html, Line } from '@react-three/drei';
 import * as random from 'maath/random/dist/maath-random.esm';
+import type { Line2, LineSegments2 } from 'three-stdlib';
 import { TreeContext, ParticleData, TreeContextType } from './types';
 
 const FoliageMaterial = shaderMaterial(
@@ -14,8 +16,8 @@ extend({ FoliageMaterial });
 
 declare module '@react-three/fiber' {
   interface ThreeElements {
-    foliageMaterial: any
-    shimmerMaterial: any
+    foliageMaterial: ReactThreeFiber.Object3DNode<THREE.ShaderMaterial, typeof FoliageMaterial>;
+    shimmerMaterial: ReactThreeFiber.Object3DNode<THREE.ShaderMaterial, typeof ShimmerMaterial>;
   }
 }
 
@@ -52,7 +54,7 @@ const PolaroidPhoto: React.FC<{
   const projectIndex = id.split('-')[1] || '0';
   const projectColor = projectColors[projectIndex] || '#666666';
 
-  const handleClick = (e: any) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (url) {
       onSelect(url);
@@ -232,14 +234,19 @@ const TreeSystem: React.FC = () => {
     state, 
     rotationSpeed, 
     rotationBoost, 
+    autoPlay,
+    webcamEnabled,
+    photoConfigs,
     pointer, 
     clickTrigger, 
     setSelectedPhotoUrl, 
     selectedPhotoUrl, 
     panOffset,
     showText,
+    setHoverProgress,
     setPhotoTargets,
     isRotationPaused,
+    setIsRotationPaused,
     setTreeRotationAngle
   } = useContext(TreeContext) as TreeContextType;
   
@@ -252,11 +259,11 @@ const TreeSystem: React.FC = () => {
   const progress = useRef(0);
   const treeRotation = useRef(0);
   const currentPan = useRef({ x: 0, y: 0 });
-  const lineRef = useRef<any>(null);
+  const lineRef = useRef<Line2 | LineSegments2 | null>(null);
 
   const [photoObjects, setPhotoObjects] = useState<{ id: string; url: string; ref: React.MutableRefObject<THREE.Group | null>; data: ParticleData; pos: THREE.Vector3; rot: THREE.Euler; scale: number; }[]>([]);
 
-  const { foliageData, photosData, lightsData } = useMemo(() => {
+  const { foliageData, lightsData } = useMemo(() => {
     const particleCount = 4500;
     const foliage = new Float32Array(particleCount * 3);
     const foliageChaos = new Float32Array(particleCount * 3);
@@ -291,20 +298,22 @@ const TreeSystem: React.FC = () => {
       lightTree[i3 + 2] = Math.sin(angle) * coneRadius;
     }
 
-    // 项目照片数据 - 使用代理路径避免 CORS
-    const projectPhotos = [
-      { url: '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886689-蝎子.png', year: 2022, month: '01', title: '仿生机械蝎子' },
-      { url: '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886689-医疗.png', year: 2022, month: '10', title: '新冠检测设备' },
-      { url: '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765715886688-车.png', year: 2024, month: '04', title: '无人车-无人机系统' },
-      { url: '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765716162171-vip.png', year: 2025, month: '02', title: '会员中心' },
-      { url: '/api/images/719dd328-3fee-4364-80a7-fb7a2a4e2881/1765716162170-smart.png', year: 2025, month: '06', title: '智能工具平台' },
-    ];
-    
-    const photoCount = projectPhotos.length;
+    return { foliageData: { current: foliage, chaos: foliageChaos, tree: foliageTree, sizes }, lightsData: { chaos: lightChaos, tree: lightTree, count: lightCount } };
+  }, []);
+
+  const photosData: ParticleData[] = useMemo(() => {
+    const list = (photoConfigs || []).slice(0, 5);
+    const photoCount = list.length || 5;
     const photos: ParticleData[] = [];
 
-    for (let i = 0; i < photoCount; i++) {
-      const photo = projectPhotos[i];
+    // 让照片位置/尺度在编辑时保持稳定：用 index 生成确定性的“伪随机”
+    const pseudo = (seed: number) => {
+      const x = Math.sin(seed * 9999.123) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let i = 0; i < list.length; i++) {
+      const photo = list[i];
 
       // 使用与灯串相同的螺旋线逻辑
       const t = (i + 0.5) / photoCount; // 均匀分布在 0-1 之间
@@ -318,7 +327,7 @@ const TreeSystem: React.FC = () => {
 
       const phi = Math.acos(1 - 2 * (i + 0.5) / photoCount);
       const theta = Math.PI * (1 + Math.sqrt(5)) * (i + 0.5);
-      const r = 12 + Math.random() * 4;
+      const r = 12 + pseudo(i + 1) * 4;
 
       const chaosX = r * Math.sin(phi) * Math.cos(theta);
       const chaosY = r * Math.sin(phi) * Math.sin(theta) * 0.6;
@@ -327,19 +336,19 @@ const TreeSystem: React.FC = () => {
       photos.push({
         id: `photo-${i}`,
         type: 'PHOTO',
-        year: photo.year,
-        month: photo.month,
         chaosPos: [chaosX, chaosY, chaosZ],
         treePos: [treeX, treeY, treeZ],
-        chaosRot: [(Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.1],
+        chaosRot: [(pseudo(i + 11) - 0.5) * 0.2, (pseudo(i + 21) - 0.5) * 0.2, (pseudo(i + 31) - 0.5) * 0.1],
         treeRot: [0, -angle + Math.PI / 2, 0],
-        scale: 0.9 + Math.random() * 0.3,
+        scale: 0.9 + pseudo(i + 41) * 0.3,
         image: photo.url,
-        color: 'white'
+        title: photo.title || '',
+        color: 'white',
       });
     }
-    return { foliageData: { current: foliage, chaos: foliageChaos, tree: foliageTree, sizes }, photosData: photos, lightsData: { chaos: lightChaos, tree: lightTree, count: lightCount } };
-  }, []);
+
+    return photos;
+  }, [photoConfigs]);
 
   useEffect(() => {
     setPhotoObjects(photosData.map(p => ({ id: p.id, url: p.image!, ref: React.createRef(), data: p, pos: new THREE.Vector3(), rot: new THREE.Euler(), scale: p.scale })));
@@ -358,13 +367,40 @@ const TreeSystem: React.FC = () => {
         baseAngle: baseAngle // 添加基础角度
       };
     });
-    setPhotoTargets(targets as any);
+    setPhotoTargets(targets);
   }, [photosData, setPhotoTargets]);
 
   const photoOpenTimeRef = useRef<number>(0);
+  const visionPausedRef = useRef(false);
+  const lastVisionHoverProgressRef = useRef<number>(0);
+  const visionAutoRef = useRef<{
+    phase: 'IDLE' | 'AIMING' | 'OPEN' | 'COOLDOWN';
+    targetId: string | null;
+    aimStartAt: number;
+    openedId: string | null;
+    openedAt: number;
+    cooldownUntil: number;
+    blockedId: string | null; // 防止用户一直单指停留导致反复开关
+  }>({
+    phase: 'IDLE',
+    targetId: null,
+    aimStartAt: 0,
+    openedId: null,
+    openedAt: 0,
+    cooldownUntil: 0,
+    blockedId: null,
+  });
+
+  const setPausedByVision = (paused: boolean) => {
+    if (autoPlay) return; // 自动演示时由漫游逻辑控制暂停
+    if (visionPausedRef.current === paused) return;
+    visionPausedRef.current = paused;
+    setIsRotationPaused(paused);
+  };
 
   // 点击/交互检测
   useEffect(() => {
+    // 非视觉识别：保留旧逻辑（仅 CHAOS + 指针）
     if (state === 'CHAOS' && pointer) {
       if (selectedPhotoUrl) {
         if (Date.now() - photoOpenTimeRef.current < 3000) return;
@@ -433,8 +469,10 @@ const TreeSystem: React.FC = () => {
     }
 
     if (pointsRef.current) {
-      // @ts-ignore
-      pointsRef.current.material.uniforms.uTime.value = state3d.clock.getElapsedTime();
+      const mat = pointsRef.current.material as unknown as { uniforms?: { uTime?: { value: number } } };
+      if (mat.uniforms?.uTime) {
+        mat.uniforms.uTime.value = state3d.clock.getElapsedTime();
+      }
       const positions = pointsRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < positions.length / 3; i++) {
         const i3 = i * 3;
@@ -488,10 +526,15 @@ const TreeSystem: React.FC = () => {
     photoObjects.forEach(obj => {
       if (obj.ref.current) {
         obj.ref.current.traverse((child) => {
-          // @ts-ignore
-          if (child.material && child.material.uniforms && child.material.uniforms.uTime) {
-            // @ts-ignore
-            child.material.uniforms.uTime.value = state3d.clock.getElapsedTime() + parseInt(obj.id.split('-')[1] || '0');
+          const maybeMesh = child as unknown as { material?: unknown };
+          const mat = maybeMesh.material;
+          const mats = Array.isArray(mat) ? mat : mat ? [mat] : [];
+          for (const m of mats) {
+            const uniforms = (m as unknown as { uniforms?: { uTime?: { value: number } } }).uniforms;
+            if (uniforms?.uTime) {
+              uniforms.uTime.value =
+                state3d.clock.getElapsedTime() + parseInt(obj.id.split('-')[1] || '0', 10);
+            }
           }
         });
       }
@@ -538,7 +581,148 @@ const TreeSystem: React.FC = () => {
         }
       });
       if (points.length >= 2) {
-        lineRef.current.geometry.setPositions(points.flatMap(p => [p.x, p.y, p.z]));
+        const line = lineRef.current;
+        const geom = (line as unknown as { geometry?: { setPositions?: (positions: number[]) => void } })?.geometry;
+        geom?.setPositions?.(points.flatMap((p) => [p.x, p.y, p.z]));
+      }
+    }
+
+    // 视觉识别（更好交互）：
+    // - 单指(pointer!=null) => 暂停树自转，稳定对准
+    // - 指向某张照片停留 2s => 自动打开
+    // - 打开后展示 2s => 自动关闭
+    // - 关闭后冷却 3s + 需要指针离开该照片才允许下一次触发（避免用户一直单指导致无限循环）
+    if (webcamEnabled) {
+      const now = state3d.clock.getElapsedTime();
+      const OPEN_DWELL = 1.0;
+      const VIEW_TIME = 2.0;
+      const COOLDOWN = 3.0;
+      const SELECTION_THRESHOLD = 0.085;
+
+      const fsm = visionAutoRef.current;
+
+      // 单指模式（pointer 有值）时暂停；打开弹窗时也暂停
+      setPausedByVision(!!pointer || !!selectedPhotoUrl);
+
+      // 计算当前指向的照片
+      let targetId: string | null = null;
+      let minDist = Infinity;
+      if (pointer && photoObjects.length > 0) {
+        const ndcX = pointer.x * 2 - 1;
+        const ndcY = -(pointer.y * 2) + 1;
+        for (const obj of photoObjects) {
+          if (!obj.ref.current) continue;
+          const worldPos = new THREE.Vector3();
+          obj.ref.current.getWorldPosition(worldPos);
+          const screenPos = worldPos.clone().project(camera);
+          if (screenPos.z >= 1) continue;
+
+          const dist = Math.hypot(screenPos.x - ndcX, screenPos.y - ndcY);
+          if (dist < SELECTION_THRESHOLD && dist < minDist) {
+            minDist = dist;
+            targetId = obj.data.image!;
+          }
+        }
+      }
+
+      // 只要指针离开被阻止的照片，就解除阻止
+      if (fsm.blockedId && targetId !== fsm.blockedId) {
+        fsm.blockedId = null;
+      }
+
+      // OPEN：自动关闭计时
+      if (selectedPhotoUrl) {
+        if (fsm.phase !== 'OPEN') {
+          fsm.phase = 'OPEN';
+          fsm.openedId = selectedPhotoUrl;
+          fsm.openedAt = now;
+        }
+
+        // 弹窗期间不显示 dwell 进度
+        if (lastVisionHoverProgressRef.current !== 0) {
+          lastVisionHoverProgressRef.current = 0;
+          setHoverProgress(0);
+        }
+
+        if (now - fsm.openedAt >= VIEW_TIME) {
+          const closedId = fsm.openedId || selectedPhotoUrl;
+          setSelectedPhotoUrl(null);
+          fsm.phase = 'COOLDOWN';
+          fsm.cooldownUntil = now + COOLDOWN;
+          fsm.blockedId = closedId; // 必须离开该图才能再次触发
+          fsm.targetId = null;
+          fsm.aimStartAt = 0;
+          fsm.openedId = null;
+          fsm.openedAt = 0;
+        }
+        return;
+      }
+
+      // COOLDOWN：冷却中不触发
+      if (fsm.phase === 'COOLDOWN') {
+        if (now >= fsm.cooldownUntil && !fsm.blockedId) {
+          fsm.phase = 'IDLE';
+        } else {
+          if (lastVisionHoverProgressRef.current !== 0) {
+            lastVisionHoverProgressRef.current = 0;
+            setHoverProgress(0);
+          }
+          return;
+        }
+      }
+
+      // AIMING：停留计时
+      if (pointer && targetId && (!fsm.blockedId || fsm.blockedId !== targetId)) {
+        if (fsm.phase !== 'AIMING' || fsm.targetId !== targetId) {
+          fsm.phase = 'AIMING';
+          fsm.targetId = targetId;
+          fsm.aimStartAt = now;
+        }
+
+        const p = Math.min((now - fsm.aimStartAt) / OPEN_DWELL, 1);
+        if (Math.abs(p - lastVisionHoverProgressRef.current) > 0.01) {
+          lastVisionHoverProgressRef.current = p;
+          setHoverProgress(p);
+        }
+
+        if (p >= 1) {
+          setSelectedPhotoUrl(targetId);
+          photoOpenTimeRef.current = Date.now();
+          fsm.phase = 'OPEN';
+          fsm.openedId = targetId;
+          fsm.openedAt = now;
+          fsm.targetId = targetId;
+          fsm.aimStartAt = 0;
+          lastVisionHoverProgressRef.current = 0;
+          setHoverProgress(0);
+        }
+      } else {
+        // 无目标：清空进度与 aiming
+        if (fsm.phase === 'AIMING') {
+          fsm.phase = 'IDLE';
+          fsm.targetId = null;
+          fsm.aimStartAt = 0;
+        }
+        if (lastVisionHoverProgressRef.current !== 0) {
+          lastVisionHoverProgressRef.current = 0;
+          setHoverProgress(0);
+        }
+      }
+    } else {
+      // 退出视觉识别：复位状态机
+      setPausedByVision(false);
+      const fsm = visionAutoRef.current;
+      fsm.phase = 'IDLE';
+      fsm.targetId = null;
+      fsm.aimStartAt = 0;
+      fsm.openedId = null;
+      fsm.openedAt = 0;
+      fsm.cooldownUntil = 0;
+      fsm.blockedId = null;
+
+      if (lastVisionHoverProgressRef.current !== 0) {
+        lastVisionHoverProgressRef.current = 0;
+        setHoverProgress(0);
       }
     }
   });
@@ -572,30 +756,25 @@ const TreeSystem: React.FC = () => {
             year={obj.data.year!}
             onSelect={setSelectedPhotoUrl}
           />
-          {obj.data.year && obj.data.month && showText && (
-            <group position={[0, 0.65, 0.05]}>
-              <Text
-                position={[0.01, -0.01, -0.01]}
-                fontSize={0.18}
-                maxWidth={1.2}
-                color="#000000"
-                anchorX="center"
-                anchorY="bottom"
-                fillOpacity={0.5}
+          {!!obj.data.title && showText && (
+            <Html
+              position={[0, 0.65, 0.05]}
+              center
+              // 跟随 3D 位置但使用浏览器字体，解决中文/emoji 方块问题
+              distanceFactor={10}
+              style={{ pointerEvents: 'none' }}
+            >
+              <div
+                className="px-2 py-1 rounded-md bg-black/40 border border-white/10 text-yellow-200 text-xs whitespace-nowrap"
+                style={{
+                  fontFamily:
+                    'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
+                  textShadow: '0 0 10px rgba(255, 215, 0, 0.45)',
+                }}
               >
-                {`${obj.data.year}-${obj.data.month}`}
-              </Text>
-              <Text
-                fontSize={0.18}
-                maxWidth={1.2}
-                color="#ffd700"
-                anchorX="center"
-                anchorY="bottom"
-                fillOpacity={state === 'FORMED' ? 1 : 0.9}
-              >
-                {`${obj.data.year}-${obj.data.month}`}
-              </Text>
-            </group>
+                {obj.data.title}
+              </div>
+            </Html>
           )}
         </group>
       ))}

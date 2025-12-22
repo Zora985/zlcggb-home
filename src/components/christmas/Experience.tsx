@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Stars, Sparkles } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';
 import * as THREE from 'three';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import TreeSystem from './TreeSystem';
 import CrystalOrnaments from './CrystalOrnaments';
 import { TreeContext, TreeContextType } from './types';
@@ -21,7 +22,7 @@ const CameraController = () => {
   } = useContext(TreeContext) as TreeContextType;
   
   const { camera, gl } = useThree();
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
   
   // 漫游状态
   const [tourIndex, setTourIndex] = useState(0);
@@ -137,7 +138,8 @@ const CameraController = () => {
       controlsRef.current.update();
     };
 
-    const onWheel = (e: WheelEvent) => {
+    const onWheel: EventListener = (evt) => {
+      const e = evt as WheelEvent;
       // 在画布上滚轮时不让页面滚动
       e.preventDefault();
 
@@ -150,7 +152,8 @@ const CameraController = () => {
     // 双指缩放（触摸）
     let pinching = false;
     let lastDistance = 0;
-    const onTouchStart = (e: TouchEvent) => {
+    const onTouchStart: EventListener = (evt) => {
+      const e = evt as TouchEvent;
       if (autoPlay) return;
       if (e.touches.length === 2) {
         pinching = true;
@@ -160,7 +163,8 @@ const CameraController = () => {
         e.preventDefault();
       }
     };
-    const onTouchMove = (e: TouchEvent) => {
+    const onTouchMove: EventListener = (evt) => {
+      const e = evt as TouchEvent;
       if (!pinching) return;
       if (autoPlay) return;
       if (e.touches.length !== 2) return;
@@ -180,7 +184,8 @@ const CameraController = () => {
       zoomTowardsPointer(centerX, centerY, ratio);
       e.preventDefault();
     };
-    const onTouchEnd = (e: TouchEvent) => {
+    const onTouchEnd: EventListener = (evt) => {
+      const e = evt as TouchEvent;
       if (e.touches.length < 2) {
         pinching = false;
       }
@@ -193,11 +198,11 @@ const CameraController = () => {
     dom.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
     return () => {
-      dom.removeEventListener('wheel', onWheel as any);
-      dom.removeEventListener('touchstart', onTouchStart as any);
-      dom.removeEventListener('touchmove', onTouchMove as any);
-      dom.removeEventListener('touchend', onTouchEnd as any);
-      dom.removeEventListener('touchcancel', onTouchEnd as any);
+      dom.removeEventListener('wheel', onWheel);
+      dom.removeEventListener('touchstart', onTouchStart);
+      dom.removeEventListener('touchmove', onTouchMove);
+      dom.removeEventListener('touchend', onTouchEnd);
+      dom.removeEventListener('touchcancel', onTouchEnd);
     };
   }, [autoPlay, camera, cameraView, gl.domElement, mouseNdc, raycaster, rayDir, r0, setCameraView, toCenterDir, treeCenter]);
 
@@ -209,8 +214,11 @@ const CameraController = () => {
 
     // 2. 自动漫游模式 (autoPlay 开启且 photoTargets 准备好)
     if (autoPlay && photoTargets.length > 0 && controlsRef.current) {
-      const currentTarget = photoTargets[tourIndex] as any;
-      const baseAngle = currentTarget.baseAngle || Math.atan2(currentTarget.pos[2], currentTarget.pos[0]);
+      const currentTarget = photoTargets[tourIndex];
+      const baseAngle =
+        typeof currentTarget.baseAngle === 'number'
+          ? currentTarget.baseAngle
+          : Math.atan2(currentTarget.pos[2], currentTarget.pos[0]);
       
       // 计算照片当前的世界角度 (基础角度 + 树旋转角度)
       const photoWorldAngle = baseAngle + treeRotationAngle;
