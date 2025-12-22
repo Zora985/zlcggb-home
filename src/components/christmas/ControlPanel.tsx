@@ -345,7 +345,14 @@ const ControlPanel: React.FC = () => {
                       <div className="text-xs text-white/50 uppercase tracking-wider mb-2">自动演示</div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
-                          onClick={() => setAutoPlay(!autoPlay)}
+                          onClick={() => {
+                            const newAutoPlay = !autoPlay;
+                            setAutoPlay(newAutoPlay);
+                            // 开始播放时自动隐藏控制面板
+                            if (newAutoPlay) {
+                              setIsExpanded(false);
+                            }
+                          }}
                           className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 border ${
                             autoPlay
                               ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'

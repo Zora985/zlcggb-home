@@ -21,7 +21,8 @@ const CameraController = () => {
     cameraView, 
     setCameraView,
     state, 
-    autoPlay, 
+    autoPlay,
+    setAutoPlay,
     photoTargets, 
     setSelectedPhotoUrl,
     setIsRotationPaused,
@@ -250,11 +251,11 @@ const CameraController = () => {
       const dirX = photoWorldX / photoRadius;
       const dirZ = photoWorldZ / photoRadius;
       
-      // 相机在照片正前方，距离照片 closeDist
-      const closeDist = 4.0;
+      // 相机在照片正前方，距离照片 closeDist（移动端不要太近：HTML 图片会被放大到发糊）
+      const closeDist = isMobile() ? 11.0 : 4.0;
       const closePos = new THREE.Vector3(
         photoWorldX + dirX * closeDist,
-        photoWorldY + 0.3, // 稍微高一点点
+        photoWorldY + 0.5, // 稍微高一点
         photoWorldZ + dirZ * closeDist
       );
 
@@ -300,8 +301,17 @@ const CameraController = () => {
         
         if (camera.position.distanceTo(cameraFixedPos) < 1.0) {
           // 切换到下一张，恢复树旋转
-          setTourIndex((prev) => (prev + 1) % photoTargets.length);
-          setTourStep('WAITING');
+          const nextIndex = tourIndex + 1;
+          if (nextIndex >= photoTargets.length) {
+            // 播放完成，停止自动播放，回到初始状态
+            setAutoPlay(false);
+            setTourIndex(0);
+            setTourStep('WAITING');
+            setCameraView('DEFAULT');
+          } else {
+            setTourIndex(nextIndex);
+            setTourStep('WAITING');
+          }
           setIsRotationPaused(false);
         }
       }

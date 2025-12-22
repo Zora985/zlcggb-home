@@ -149,33 +149,49 @@ const PolaroidPhoto: React.FC<{
     >
       {/* 移动端：使用 HTML 直接显示图片（带边框样式） */}
       {mobile && shouldLoad && url ? (
-        <Html
-          position={[0, 0, 0.02]}
-          center
-          transform
-          distanceFactor={10}
-          style={{ pointerEvents: 'none' }}
-        >
-          <div style={{
-            padding: '4px',
-            background: hovered ? '#ffffee' : '#ffffff',
-            borderRadius: '3px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          }}>
-            <img 
-              src={url} 
-              alt=""
-              style={{
-                width: '80px',  // 缩小图片
-                height: 'auto',
-                maxHeight: '100px',
-                objectFit: 'contain',
-                display: 'block',
-                borderRadius: '2px',
+        <>
+          {/* 透明点击区域 - 扩大范围确保移动端容易点击 */}
+          <mesh position={[0, 0, 0]}>
+            <planeGeometry args={[3.0, 3.5]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+          <Html
+            position={[0, 0, 0.02]}
+            center
+            transform
+            distanceFactor={10}
+            // 移动端：允许点击图片本身打开弹窗（否则很多浏览器会“点图没反应，点到图外才行”）
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelect(url);
               }}
-            />
-          </div>
-        </Html>
+              style={{
+              padding: '4px',
+              background: hovered ? '#ffffee' : '#ffffff',
+              borderRadius: '3px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              cursor: 'pointer',
+            }}>
+              <img 
+                src={url} 
+                alt=""
+                draggable={false}
+                style={{
+                  width: '80px',
+                  height: 'auto',
+                  maxHeight: '100px',
+                  objectFit: 'contain',
+                  display: 'block',
+                  borderRadius: '2px',
+                }}
+              />
+            </div>
+          </Html>
+        </>
       ) : (
         <>
           {/* 桌面端：相框背景 */}
@@ -362,6 +378,7 @@ const TreeSystem: React.FC = () => {
   const lightsRef = useRef<THREE.InstancedMesh>(null);
   const trunkRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const isMobileDevice = useMemo(() => isMobile(), []);
 
   const progress = useRef(0);
   const treeRotation = useRef(0);
@@ -848,8 +865,46 @@ const TreeSystem: React.FC = () => {
     }
   });
 
+  // 移动端“模糊点击”：
+  // 由于树的粒子/灯串会抢占 raycast 命中，导致照片点击需要非常精确；
+  // 这里在点击到树本体任意位置时，按屏幕距离找“最近的照片”，让交互更像桌面端。
+  const handleMobileFuzzyPick = (e: ThreeEvent<MouseEvent>) => {
+    if (!isMobileDevice) return;
+    if (!photoObjects.length) return;
+
+    // 只在成树态启用（避免 CHAOS 状态误触）
+    if (state !== 'FORMED') return;
+
+    const ndcX = e.pointer.x; // R3F: -1 ~ 1
+    const ndcY = e.pointer.y;
+
+    let closestPhotoId: string | null = null;
+    let minDistance = Infinity;
+    // 阈值越大越“好点”，但也更容易误触；移动端取一个偏大的值
+    const SELECTION_THRESHOLD = 0.22;
+
+    const checkVector = tempVector;
+    for (const obj of photoObjects) {
+      if (!obj.ref.current) continue;
+      obj.ref.current.getWorldPosition(checkVector);
+      checkVector.project(camera);
+      if (checkVector.z >= 1) continue;
+
+      const dist = Math.hypot(checkVector.x - ndcX, checkVector.y - ndcY);
+      if (dist < SELECTION_THRESHOLD && dist < minDistance) {
+        minDistance = dist;
+        closestPhotoId = obj.data.image!;
+      }
+    }
+
+    if (closestPhotoId) {
+      setSelectedPhotoUrl(closestPhotoId);
+      photoOpenTimeRef.current = Date.now();
+    }
+  };
+
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} onClick={handleMobileFuzzyPick}>
       <mesh ref={trunkRef} position={[0, 0, 0]}>
         <cylinderGeometry args={[0.2, 0.8, 14, 8]} />
         <meshStandardMaterial color="#3E2723" roughness={0.9} metalness={0.1} />
@@ -897,6 +952,7 @@ const TreeSystem: React.FC = () => {
                   fontFamily:
                     'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif',
                   textShadow: '0 0 10px rgba(255, 215, 0, 0.45)',
+                  pointerEvents: 'none',
                 }}
               >
                 {obj.data.title}
