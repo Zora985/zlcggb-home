@@ -5,6 +5,7 @@ import PortfolioPage from './components/PortfolioPage';
 import TimelinePage from './components/TimelinePage';
 import LabPage from './components/LabPage';
 import ChristmasPage from './components/ChristmasPage';
+import PetPage from './components/PetPage';
 
 function App() {
   const location = useLocation();
@@ -20,6 +21,7 @@ function App() {
         <Route path="/timeline" element={<TimelinePage />} />
         <Route path="/lab" element={<LabPage />} />
         <Route path="/christmas" element={<ChristmasPage />} />
+        <Route path="/pet" element={<PetPage />} />
         {/* 404 重定向到首页 */}
         <Route path="*" element={<HomePage />} />
       </Routes>

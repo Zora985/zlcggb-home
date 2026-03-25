@@ -67,8 +67,8 @@ export default function Layout({ children, currentPage }: LayoutProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   
-  // 判断是否是圣诞树页面
-  const isChristmasPage = currentPage === 'christmas';
+  // 判断是否是深色主题页面（圣诞树 / 电子宠物）
+  const isChristmasPage = currentPage === 'christmas' || currentPage === 'pet';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,6 +84,7 @@ export default function Layout({ children, currentPage }: LayoutProps) {
     { id: 'portfolio', label: '作品集' },
     { id: 'timeline', label: '进化之路' },
     { id: 'lab', label: '技术实验室' },
+    { id: 'pet', label: '🐾 电子宠物' },
     { id: 'christmas', label: '🎄 圣诞树' }
   ];
 

@@ -243,3 +243,24 @@ img {
 .bg-gradient-radial {
   background: radial-gradient(circle, var(--tw-gradient-stops));
 }
+
+/* Pet Page Animations */
+@keyframes firefly-float {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(15px, -20px); }
+  50% { transform: translate(-10px, -5px); }
+  75% { transform: translate(20px, 10px); }
+  100% { transform: translate(-15px, -15px); }
+}
+
+@keyframes firefly-glow {
+  0% { opacity: 0.2; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.3; }
+}
+
+@keyframes particle-burst {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--px, 20px), var(--py, -30px)) scale(0.3); }
+}
+
