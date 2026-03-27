@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Sparkles, Trash2, Save, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft } from 'lucide-react';
+import { Send, Sparkles, Trash2, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft } from 'lucide-react';
 import { streamChatCompletion, isAiConfigured, type ChatMessage } from '../../lib/aiClient';
 import { getSystemPrompt, getUserPromptPrefix, truncateSvgForPrompt, type CreatorMode } from '../../lib/creatorPrompts';
 import { buildLayeredWorkshopComposite, type CompositeLayerProps } from '../../lib/workshopComposite';
@@ -33,6 +33,15 @@ interface CreatorWorkshopProps {
   onApplyCharacter?: (creationId: string) => void;
 }
 
+const fnv1aHash = (s: string): string => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+};
+
 const MODE_TABS: { id: CreatorMode; label: string }[] = [
   { id: 'character', label: '角色' },
   { id: 'scene', label: '场景' },
@@ -55,6 +64,9 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
   const [svgCodeExpanded, setSvgCodeExpanded] = useState<Record<number, boolean>>({});
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const workshopContextRef = useRef({ mode: 'character' as CreatorMode, pickSceneId: '', pickCharacterId: '', pickPropIds: [] as string[] });
+  const lastAutoSavedSvgKeyRef = useRef<string | null>(null);
+  const lastGallerySaveRef = useRef<{ id: string; mode: CreatorMode } | null>(null);
 
   const [pickCharacterId, setPickCharacterId] = useState('');
   const [pickSceneId, setPickSceneId] = useState('');
@@ -79,6 +91,40 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     if (character.length === 1) setPickCharacterId(character[0].id);
     else setPickCharacterId((id) => (id && character.some((c) => c.id === id) ? id : ''));
   }, [mode, creationsByType.scene, creationsByType.character]);
+
+  workshopContextRef.current = { mode, pickSceneId, pickCharacterId, pickPropIds };
+
+  /** 每次成功生成后自动入库；同一张 SVG 不重复写入 */
+  const persistGeneratedSvg = useCallback((svgData: string, msgs: WorkshopChatMsg[]) => {
+    const { mode: m, pickSceneId: ps, pickCharacterId: pc, pickPropIds: pp } = workshopContextRef.current;
+    if (!isProbablySafeSvg(svgData)) return null;
+    const key = `${m}-${fnv1aHash(svgData)}`;
+    if (lastAutoSavedSvgKeyRef.current === key) {
+      const cur = lastGallerySaveRef.current;
+      return cur ? getCreation(cur.id) ?? null : null;
+    }
+    lastAutoSavedSvgKeyRef.current = key;
+    const lastUserBubble = msgs.filter((x) => x.role === 'user').pop()?.content ?? '';
+    let name = deriveCreationShortName(lastUserBubble, m);
+    if (m === 'animation') {
+      const sc = ps ? getCreation(ps) : undefined;
+      const ch = pc ? getCreation(pc) : undefined;
+      if (sc?.type === 'scene' && ch?.type === 'character') {
+        name = shortCompositeDisplayName(ch.name, sc.name, pp.length);
+      }
+    }
+    const rec = saveCreation({
+      type: m,
+      name,
+      description: '',
+      svgData,
+      prompt: msgs.map((x) => `${x.role}: ${x.content}`).join('\n---\n').slice(0, 4000),
+    });
+    lastGallerySaveRef.current = { id: rec.id, mode: m };
+    setGalleryTick((t) => t + 1);
+    setError(null);
+    return rec;
+  }, []);
 
   const lastAssistantSvg = useMemo(() => {
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
@@ -113,6 +159,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       setError(null);
       setMobilePanel('chat');
       setSvgCodeExpanded({});
+      lastAutoSavedSvgKeyRef.current = null;
+      lastGallerySaveRef.current = null;
     },
     [mode, messages, input, streaming],
   );
@@ -166,7 +214,16 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           return copy;
         });
       },
-      onDone: () => { setStreaming(false); abortRef.current = null; },
+      onDone: () => {
+        const finalMessages: WorkshopChatMsg[] = [
+          ...nextMessages.slice(0, -1),
+          { role: 'assistant', content: acc },
+        ];
+        const svg = extractSvgFromAssistantText(acc);
+        if (svg) persistGeneratedSvg(svg, finalMessages);
+        setStreaming(false);
+        abortRef.current = null;
+      },
       onError: (err) => {
         setStreaming(false);
         abortRef.current = null;
@@ -179,38 +236,41 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
         });
       },
     });
-  }, [input, streaming, mode, messages]);
-
-  const handleSave = useCallback(() => {
-    if (!lastAssistantSvg) { setError('无可保存的 SVG'); return; }
-    const lastUserBubble = messages.filter((m) => m.role === 'user').pop()?.content ?? '';
-    let name = deriveCreationShortName(lastUserBubble, mode);
-    if (mode === 'animation') {
-      const sc = pickSceneId ? getCreation(pickSceneId) : undefined;
-      const ch = pickCharacterId ? getCreation(pickCharacterId) : undefined;
-      if (sc?.type === 'scene' && ch?.type === 'character') {
-        name = shortCompositeDisplayName(ch.name, sc.name, pickPropIds.length);
-      }
-    }
-    saveCreation({ type: mode, name, description: '', svgData: lastAssistantSvg,
-      prompt: messages.map((m) => `${m.role}: ${m.content}`).join('\n---\n').slice(0, 4000) });
-    setGalleryTick((t) => t + 1);
-    setError(null);
-  }, [lastAssistantSvg, messages, mode, pickSceneId, pickCharacterId, pickPropIds]);
+  }, [input, streaming, mode, messages, persistGeneratedSvg]);
 
   const handleApplyCharacter = useCallback(() => {
     if (!lastAssistantSvg || !isProbablySafeSvg(lastAssistantSvg)) return;
+    const link = lastGallerySaveRef.current;
+    if (link?.mode === 'character') {
+      const existing = getCreation(link.id);
+      if (existing?.svgData === lastAssistantSvg) {
+        onApplyCharacter?.(existing.id);
+        return;
+      }
+    }
     const lastUserBubble = messages.filter((m) => m.role === 'user').pop()?.content ?? '';
-    const rec = saveCreation({ type: 'character',
+    const rec = saveCreation({
+      type: 'character',
       name: deriveCreationShortName(lastUserBubble, 'character'),
-      description: '从工坊应用', svgData: lastAssistantSvg,
-      prompt: messages.map((m) => `${m.role}: ${m.content}`).join('\n---\n').slice(0, 4000) });
+      description: '从工坊应用',
+      svgData: lastAssistantSvg,
+      prompt: messages.map((m) => `${m.role}: ${m.content}`).join('\n---\n').slice(0, 4000),
+    });
+    lastGallerySaveRef.current = { id: rec.id, mode: 'character' };
+    lastAutoSavedSvgKeyRef.current = `character-${fnv1aHash(lastAssistantSvg)}`;
     setGalleryTick((t) => t + 1);
     onApplyCharacter?.(rec.id);
   }, [lastAssistantSvg, messages, onApplyCharacter]);
 
   const clearChat = useCallback(() => {
-    stop(); setMessages([]); setInput(''); setError(null); setMobilePanel('chat'); setSvgCodeExpanded({});
+    stop();
+    setMessages([]);
+    setInput('');
+    setError(null);
+    setMobilePanel('chat');
+    setSvgCodeExpanded({});
+    lastAutoSavedSvgKeyRef.current = null;
+    lastGallerySaveRef.current = null;
     saveWorkshopTabSnapshot(mode, { messages: [], inputDraft: '' });
   }, [stop, mode]);
 
@@ -228,6 +288,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     setMode(entry.mode); setMessages(entry.messages); setInput(entry.inputDraft);
     saveWorkshopTabSnapshot(entry.mode, { messages: entry.messages, inputDraft: entry.inputDraft });
     setShowHistory(false);
+    lastAutoSavedSvgKeyRef.current = null;
+    lastGallerySaveRef.current = null;
   }, [streaming, mode, messages, input]);
 
   const insertCompositeFromGallery = useCallback(() => {
@@ -268,13 +330,16 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       return;
     }
     const summary = `【本地合成】${ch.name} / ${sc.name}${props.length ? ` / 道具×${props.length}` : ''}`;
-    setMessages((prev) => [...prev,
-      { role: 'user', content: summary },
-      { role: 'assistant', content: `\`\`\`svg\n${svg}\n\`\`\`\n\n*背景与图层来自画廊原始 SVG，仅在本地叠加 transform 与简单 CSS 动效，未经大模型重绘。*` },
-    ]);
+    const assistantMsg: WorkshopChatMsg = {
+      role: 'assistant',
+      content: `\`\`\`svg\n${svg}\n\`\`\`\n\n*背景与图层来自画廊原始 SVG，仅在本地叠加 transform 与简单 CSS 动效，未经大模型重绘。*`,
+    };
+    const merged: WorkshopChatMsg[] = [...messages, { role: 'user', content: summary }, assistantMsg];
+    setMessages(merged);
+    persistGeneratedSvg(svg, merged);
     setError(null);
     setMobilePanel('preview');
-  }, [pickSceneId, pickCharacterId, pickPropIds]);
+  }, [pickSceneId, pickCharacterId, pickPropIds, messages, persistGeneratedSvg]);
 
   const togglePropPick = useCallback((id: string) => {
     setPickPropIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 8 ? prev : [...prev, id]);
@@ -450,7 +515,9 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
                         {isLocalComposite ? '本地合成完成' : '已生成像素图'}
                       </div>
                       <p className="text-xs text-indigo-200/75 mt-1.5 leading-relaxed">
-                        看图请用右侧「预览」，需要保存或应用到宠物用下方按钮即可。
+                        {mode === 'character'
+                          ? '已自动加入画廊；预览在右侧。要在主页宠物上使用请点击下方「应用」。'
+                          : '已自动加入画廊；预览在右侧。可在底部「画廊」或合成搭景中继续选用。'}
                       </p>
                       {proseOnly ? (
                         <p className="text-[11px] text-indigo-300/70 mt-2 line-clamp-3 whitespace-pre-wrap">{proseOnly}</p>
@@ -520,7 +587,6 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
 
           {/* 操作按钮 */}
           <div className="flex-none flex items-center gap-1.5 px-2 pb-1.5 sm:px-3 sm:pb-2">
-            <ActionBtn icon={<Save size={12} />} label="保存" onClick={handleSave} disabled={!lastAssistantSvg || streaming} />
             {mode === 'character' && (
               <ActionBtn icon={<UserCircle2 size={12} />} label="应用" variant="green" onClick={handleApplyCharacter} disabled={!lastAssistantSvg || streaming} />
             )}
@@ -561,7 +627,6 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
 
           {lastAssistantSvg && (
             <div className="flex-none flex items-center justify-center gap-2 px-3 pb-3 lg:hidden">
-              <ActionBtn icon={<Save size={12} />} label="保存" onClick={handleSave} disabled={streaming} />
               {mode === 'character' && (
                 <ActionBtn icon={<UserCircle2 size={12} />} label="应用角色" variant="green" onClick={handleApplyCharacter} disabled={streaming} />
               )}
