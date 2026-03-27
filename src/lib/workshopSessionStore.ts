@@ -4,7 +4,12 @@ const SESSION_KEY = 'zlcggb-workshop-session-v1';
 const HISTORY_KEY = 'zlcggb-workshop-history-v1';
 const MAX_HISTORY = 40;
 
-export type WorkshopChatMsg = { role: 'user' | 'assistant'; content: string };
+export type WorkshopChatMsg = {
+  role: 'user' | 'assistant';
+  content: string;
+  /** 本条助手回复对应的画廊条目 id；若在画廊中已删除则 getCreation 为空，用于显示「再次保存」 */
+  galleryLinkedId?: string;
+};
 
 export interface WorkshopTabSnapshot {
   messages: WorkshopChatMsg[];

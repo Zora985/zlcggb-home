@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Sparkles, Trash2, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft } from 'lucide-react';
+import { Send, Sparkles, Trash2, Save, Download, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft } from 'lucide-react';
 import { streamChatCompletion, isAiConfigured, type ChatMessage } from '../../lib/aiClient';
 import { getSystemPrompt, getUserPromptPrefix, truncateSvgForPrompt, type CreatorMode } from '../../lib/creatorPrompts';
 import { buildLayeredWorkshopComposite, type CompositeLayerProps } from '../../lib/workshopComposite';
@@ -28,6 +28,7 @@ import {
   shortenForSelectLabel,
   stripUserPromptPrefixForDisplay,
 } from '../../lib/creationNaming';
+import { downloadSvgAsFile } from '../../lib/svgDownload';
 
 interface CreatorWorkshopProps {
   onApplyCharacter?: (creationId: string) => void;
@@ -220,7 +221,16 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           { role: 'assistant', content: acc },
         ];
         const svg = extractSvgFromAssistantText(acc);
-        if (svg) persistGeneratedSvg(svg, finalMessages);
+        const rec = svg ? persistGeneratedSvg(svg, finalMessages) : null;
+        setMessages((prev) => {
+          const copy = [...prev];
+          const li = copy.length - 1;
+          const last = copy[li];
+          if (last?.role === 'assistant' && rec) {
+            copy[li] = { ...last, galleryLinkedId: rec.id };
+          }
+          return copy;
+        });
         setStreaming(false);
         abortRef.current = null;
       },
@@ -238,8 +248,90 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     });
   }, [input, streaming, mode, messages, persistGeneratedSvg]);
 
+  /** 将第 i 条助手消息中的 SVG 单独存入画廊（与本条对话绑定） */
+  const handleSaveMessageAt = useCallback((index: number) => {
+    const msg = messages[index];
+    if (!msg || msg.role !== 'assistant') return;
+    const svgData = extractSvgFromAssistantText(msg.content);
+    if (!svgData || !isProbablySafeSvg(svgData)) {
+      setError('这条消息里没有可保存的 SVG');
+      return;
+    }
+    let prevUser = '';
+    for (let j = index - 1; j >= 0; j--) {
+      if (messages[j].role === 'user') {
+        prevUser = messages[j].content;
+        break;
+      }
+    }
+    const { mode: m, pickSceneId: ps, pickCharacterId: pc, pickPropIds: pp } = workshopContextRef.current;
+    let name = deriveCreationShortName(prevUser, m);
+    if (m === 'animation') {
+      const sc = ps ? getCreation(ps) : undefined;
+      const ch = pc ? getCreation(pc) : undefined;
+      if (sc?.type === 'scene' && ch?.type === 'character') {
+        name = shortCompositeDisplayName(ch.name, sc.name, pp.length);
+      }
+    }
+    const promptSlice = messages
+      .slice(0, index + 1)
+      .map((x) => `${x.role}: ${x.content}`)
+      .join('\n---\n')
+      .slice(0, 4000);
+    const rec = saveCreation({
+      type: m,
+      name,
+      description: '',
+      svgData,
+      prompt: promptSlice,
+    });
+    setMessages((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], galleryLinkedId: rec.id };
+      return copy;
+    });
+    if (index === messages.length - 1) {
+      lastGallerySaveRef.current = { id: rec.id, mode: m };
+      lastAutoSavedSvgKeyRef.current = `${m}-${fnv1aHash(svgData)}`;
+    }
+    setGalleryTick((t) => t + 1);
+    setError(null);
+  }, [messages]);
+
+  const downloadSvgFromAssistantIndex = useCallback(
+    (index: number) => {
+      const msg = messages[index];
+      if (!msg || msg.role !== 'assistant') return;
+      const svg = extractSvgFromAssistantText(msg.content);
+      if (!svg || !isProbablySafeSvg(svg)) return;
+      const linked = msg.galleryLinkedId ? getCreation(msg.galleryLinkedId) : undefined;
+      let base: string;
+      if (linked?.name) base = linked.name;
+      else {
+        let prevUser = '';
+        for (let j = index - 1; j >= 0; j--) {
+          if (messages[j].role === 'user') {
+            prevUser = messages[j].content;
+            break;
+          }
+        }
+        base = deriveCreationShortName(prevUser, mode);
+      }
+      downloadSvgAsFile(svg, base);
+    },
+    [messages, mode],
+  );
+
   const handleApplyCharacter = useCallback(() => {
     if (!lastAssistantSvg || !isProbablySafeSvg(lastAssistantSvg)) return;
+    const lastAsst = [...messages].reverse().find((m) => m.role === 'assistant');
+    if (lastAsst?.galleryLinkedId) {
+      const existing = getCreation(lastAsst.galleryLinkedId);
+      if (existing?.type === 'character' && existing.svgData === lastAssistantSvg) {
+        onApplyCharacter?.(existing.id);
+        return;
+      }
+    }
     const link = lastGallerySaveRef.current;
     if (link?.mode === 'character') {
       const existing = getCreation(link.id);
@@ -335,8 +427,13 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       content: `\`\`\`svg\n${svg}\n\`\`\`\n\n*背景与图层来自画廊原始 SVG，仅在本地叠加 transform 与简单 CSS 动效，未经大模型重绘。*`,
     };
     const merged: WorkshopChatMsg[] = [...messages, { role: 'user', content: summary }, assistantMsg];
-    setMessages(merged);
-    persistGeneratedSvg(svg, merged);
+    const rec = persistGeneratedSvg(svg, merged);
+    const withLink: WorkshopChatMsg[] = rec
+      ? merged.map((m, idx) =>
+          idx === merged.length - 1 && m.role === 'assistant' ? { ...m, galleryLinkedId: rec.id } : m,
+        )
+      : merged;
+    setMessages(withLink);
     setError(null);
     setMobilePanel('preview');
   }, [pickSceneId, pickCharacterId, pickPropIds, messages, persistGeneratedSvg]);
@@ -360,7 +457,7 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       {showHistory && (
         <div className="flex-none max-h-28 sm:max-h-36 overflow-y-auto border-b border-white/10 bg-black/35 px-2 py-1.5 space-y-1 z-10">
           {historyList.length === 0 ? (
-            <p className="text-indigo-300/40 text-xs">暂无存档。</p>
+            <p className="text-indigo-300/40 text-xs">暂无暂存的对话记录。</p>
           ) : historyList.map((h) => (
             <div key={h.id} className="flex items-center gap-1.5 text-xs bg-white/5 rounded-lg px-2 py-1">
               <span className="shrink-0 text-indigo-400/80 font-medium">{MODE_TABS.find((x) => x.id === h.mode)?.label}</span>
@@ -505,6 +602,9 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
               const hasSvgBubble = Boolean(extracted && isProbablySafeSvg(extracted));
               const proseOnly = msg.content.replace(/```(?:svg|html)?\s*[\s\S]*?```/gi, '').replace(/\*+/g, '').trim();
               const isLocalComposite = /本地叠加|未经大模型重绘|本地合成/.test(msg.content);
+              const linkedRecord = msg.galleryLinkedId ? getCreation(msg.galleryLinkedId) : undefined;
+              const svgInGallery = Boolean(linkedRecord);
+              const saveThisDisabled = streaming && isLast;
 
               if (hasSvgBubble && !svgCodeExpanded[i]) {
                 return (
@@ -514,21 +614,52 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
                         <Sparkles className="shrink-0 text-emerald-300" size={16} />
                         {isLocalComposite ? '本地合成完成' : '已生成像素图'}
                       </div>
-                      <p className="text-xs text-indigo-200/75 mt-1.5 leading-relaxed">
-                        {mode === 'character'
-                          ? '已自动加入画廊；预览在右侧。要在主页宠物上使用请点击下方「应用」。'
-                          : '已自动加入画廊；预览在右侧。可在底部「画廊」或合成搭景中继续选用。'}
-                      </p>
+                      <div className="mt-1.5 space-y-1.5">
+                        {svgInGallery ? (
+                          <p className="text-[11px] text-emerald-200/85 leading-relaxed">
+                            ✓ 已自动保存到画廊，与本轮对话绑定。可在底部「画廊」查看或删除。
+                          </p>
+                        ) : (
+                          <>
+                            <p className="text-[11px] text-amber-100/80 leading-relaxed">
+                              {msg.galleryLinkedId
+                                ? '检测到本条已从画廊中移除，可重新保存这一条生成的图。'
+                                : '本条尚未在画廊中，或需要手动补存。'}
+                            </p>
+                            <button
+                              type="button"
+                              disabled={saveThisDisabled}
+                              onClick={() => handleSaveMessageAt(i)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/70 hover:bg-indigo-500/90 text-[11px] font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Save size={12} /> 保存到画廊
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {mode === 'character' && svgInGallery && isLast ? (
+                        <p className="text-[10px] text-indigo-300/65 mt-1.5">要在主页换上这只宠物，请用左下角「应用」。</p>
+                      ) : null}
                       {proseOnly ? (
                         <p className="text-[11px] text-indigo-300/70 mt-2 line-clamp-3 whitespace-pre-wrap">{proseOnly}</p>
                       ) : null}
-                      <button
-                        type="button"
-                        className="mt-2.5 text-[11px] text-indigo-400/90 hover:text-indigo-200 underline underline-offset-2"
-                        onClick={() => setSvgCodeExpanded((prev) => ({ ...prev, [i]: true }))}
-                      >
-                        查看原始 SVG（调试用）
-                      </button>
+                      <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 items-center">
+                        <button
+                          type="button"
+                          className="text-[11px] text-indigo-400/90 hover:text-indigo-200 underline underline-offset-2"
+                          onClick={() => setSvgCodeExpanded((prev) => ({ ...prev, [i]: true }))}
+                        >
+                          查看原始 SVG（调试用）
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-300/95 hover:text-sky-100"
+                          onClick={() => downloadSvgFromAssistantIndex(i)}
+                          title="下载本条对话生成的 SVG 文件"
+                        >
+                          <Download size={12} /> 下载 SVG
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -545,6 +676,33 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
                       >
                         收起代码
                       </button>
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        {svgInGallery ? (
+                          <span className="text-[11px] text-emerald-300/90">✓ 此条已在画廊中</span>
+                        ) : (
+                          <>
+                            <span className="text-[11px] text-amber-200/80">
+                              {msg.galleryLinkedId ? '画廊中已删，可重存' : '未在画廊'}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={saveThisDisabled}
+                              onClick={() => handleSaveMessageAt(i)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-600/60 text-[10px] font-medium text-white disabled:opacity-40"
+                            >
+                              <Save size={11} /> 保存到画廊
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-sky-600/35 text-sky-100 text-[10px] font-medium hover:bg-sky-600/50"
+                          onClick={() => downloadSvgFromAssistantIndex(i)}
+                          title="下载 SVG"
+                        >
+                          <Download size={11} /> 下载
+                        </button>
+                      </div>
                       <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-snug font-mono text-indigo-200/80 bg-black/30 rounded-lg p-2 border border-white/5">
                         {msg.content}
                       </pre>
@@ -586,11 +744,11 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           </div>
 
           {/* 操作按钮 */}
-          <div className="flex-none flex items-center gap-1.5 px-2 pb-1.5 sm:px-3 sm:pb-2">
+          <div className="flex-none flex flex-wrap items-center gap-1.5 px-2 pb-1.5 sm:px-3 sm:pb-2">
             {mode === 'character' && (
               <ActionBtn icon={<UserCircle2 size={12} />} label="应用" variant="green" onClick={handleApplyCharacter} disabled={!lastAssistantSvg || streaming} />
             )}
-            <ActionBtn icon={<History size={12} />} label="存档" variant="violet" onClick={pushToHistory} disabled={streaming || messages.length === 0} />
+            <ActionBtn icon={<History size={12} />} label="暂存对话" variant="violet" onClick={pushToHistory} disabled={streaming || messages.length === 0} title="只保存聊天记录到本机，点底部「历史」可恢复聊天，不会出现在画廊里" />
             <ActionBtn icon={<Trash2 size={12} />} label="清空" onClick={clearChat} disabled={streaming} />
           </div>
         </div>
@@ -626,7 +784,7 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           </div>
 
           {lastAssistantSvg && (
-            <div className="flex-none flex items-center justify-center gap-2 px-3 pb-3 lg:hidden">
+            <div className="flex-none flex flex-wrap items-center justify-center gap-2 px-3 pb-3 lg:hidden">
               {mode === 'character' && (
                 <ActionBtn icon={<UserCircle2 size={12} />} label="应用角色" variant="green" onClick={handleApplyCharacter} disabled={streaming} />
               )}
@@ -668,7 +826,7 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
             className={`shrink-0 flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl border text-[10px] font-medium min-w-[3rem] transition-colors ${
               showHistory ? 'bg-violet-500/25 border-violet-400/40 text-violet-100' : 'bg-white/5 border-white/10 text-indigo-200/70 hover:bg-white/10'
             }`}
-            title="对话存档"
+            title="查看「暂存对话」列表，恢复聊天内容（不是画廊）"
           >
             <History size={16} />
             <span>历史</span>
@@ -690,8 +848,9 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
   );
 }
 
-function ActionBtn({ icon, label, variant, className = '', onClick, disabled }: {
+function ActionBtn({ icon, label, variant, className = '', title: tip, onClick, disabled }: {
   icon: React.ReactNode; label: string; variant?: 'green' | 'violet'; className?: string;
+  title?: string;
   onClick?: () => void; disabled?: boolean;
 }) {
   const base = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium transition-colors disabled:opacity-40';
@@ -701,7 +860,7 @@ function ActionBtn({ icon, label, variant, className = '', onClick, disabled }: 
     ? 'bg-violet-500/30 hover:bg-violet-500/50 text-violet-100'
     : 'bg-white/10 hover:bg-white/15 text-indigo-200/80';
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`${base} ${colors} ${className}`}>
+    <button type="button" title={tip} onClick={onClick} disabled={disabled} className={`${base} ${colors} ${className}`}>
       {icon}{label}
     </button>
   );
@@ -725,6 +884,14 @@ function GalleryThumb({ record, onDelete, onApplyCharacter }: {
             <button type="button" title="应用" onClick={() => onApplyCharacter(record.id)}
               className="px-1 rounded bg-emerald-500/30 text-emerald-200 text-[9px]">用</button>
           )}
+          <button
+            type="button"
+            title="下载 SVG"
+            onClick={() => downloadSvgAsFile(record.svgData, record.name)}
+            className="p-0.5 rounded bg-sky-500/25 text-sky-200 hover:bg-sky-500/40"
+          >
+            <Download size={10} />
+          </button>
           <button type="button" title="删除" onClick={onDelete} className="p-0.5 rounded bg-rose-500/20 text-rose-300">
             <Trash2 size={10} />
           </button>
