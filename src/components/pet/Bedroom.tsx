@@ -3,9 +3,10 @@
 interface BedroomProps {
   onSleepToggle: () => void;
   isSleeping: boolean;
+  sleepHeadColor?: string;
 }
 
-export function Bedroom({ onSleepToggle, isSleeping }: BedroomProps) {
+export function Bedroom({ onSleepToggle, isSleeping, sleepHeadColor = '#f97316' }: BedroomProps) {
   return (
     <div className={`absolute inset-0 w-full h-full overflow-hidden transition-colors duration-1000 ${isSleeping ? 'bg-[#0a0a1a]' : 'bg-[#e2e8f0]'}`}>
       {/* 卧室 SVG 场景 */}
@@ -85,7 +86,7 @@ export function Bedroom({ onSleepToggle, isSleeping }: BedroomProps) {
               
               {/* 宠物橘黄色的头（只露出半个身位，且闭着眼睛） */}
               <g transform="translate(225, 65)">
-                <rect x="0" y="0" width="36" height="26" fill="#f97316" rx="4" />
+                <rect x="0" y="0" width="36" height="26" fill={sleepHeadColor} rx="4" />
                 {/* 闭着的眼睛 (- -) */}
                 <rect x="6" y="10" width="8" height="3" fill="#431407" />
                 <rect x="22" y="10" width="8" height="3" fill="#431407" />

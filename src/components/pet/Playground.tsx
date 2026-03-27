@@ -8,11 +8,12 @@ interface PlaygroundProps {
   setFlip: (flip: boolean) => void;
   setIsWalking?: (walking: boolean) => void;
   setIsPlaying?: (playing: boolean) => void;
+  characterFilter?: string;
 }
 
 interface Item { id: number; x: number; y: number; vy: number; type: 'star'|'heart'; size: number; rot: number; }
 
-export function Playground({ onPlayResult, setIsPlaying }: PlaygroundProps) {
+export function Playground({ onPlayResult, setIsPlaying, characterFilter }: PlaygroundProps) {
   const [gameMode, setGameMode] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -467,7 +468,7 @@ export function Playground({ onPlayResult, setIsPlaying }: PlaygroundProps) {
                src="/pet-sprites/clawd-idle.svg" 
                alt="Clawd Player" 
                className="w-full h-full relative z-10 drop-shadow-md" 
-               style={{ imageRendering: 'pixelated' }} 
+               style={{ imageRendering: 'pixelated', filter: characterFilter }} 
                draggable={false} 
             />
           </div>

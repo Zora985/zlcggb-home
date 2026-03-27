@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { DEFAULT_CHARACTER_ID } from './characters';
 
-export type RoomId = 'living_room' | 'kitchen' | 'bathroom' | 'bedroom' | 'playground';
+export type RoomId =
+  | 'living_room'
+  | 'kitchen'
+  | 'bathroom'
+  | 'bedroom'
+  | 'playground'
+  | 'workshop';
 export type Emotion = 'happy' | 'normal' | 'sad' | 'sleeping' | 'dizzy';
 
 export interface PetState {
@@ -10,6 +17,7 @@ export interface PetState {
   hygiene: number;   // 0-100
   isSleeping: boolean;
   currentRoom: RoomId;
+  characterId: string;
   lastUpdate: number;
 }
 
@@ -23,6 +31,7 @@ const DEFAULT_STATE: PetState = {
   hygiene: 80,
   isSleeping: false,
   currentRoom: 'living_room',
+  characterId: DEFAULT_CHARACTER_ID,
   lastUpdate: Date.now(),
 };
 
@@ -35,6 +44,7 @@ function loadState(): PetState {
       const decay = elapsed * DECAY_RATE;
       return {
         ...state,
+        characterId: state.characterId || DEFAULT_CHARACTER_ID,
         hunger: Math.max(0, state.hunger - decay),
         mood: Math.max(0, state.mood - decay * 0.8),
         hygiene: Math.max(0, state.hygiene - decay * 0.5),
@@ -104,6 +114,15 @@ export function usePetState() {
     });
   }, []);
 
+  const setCharacter = useCallback((characterId: string) => {
+    setState(prev => {
+      if (prev.characterId === characterId) return prev;
+      const next = { ...prev, characterId, lastUpdate: Date.now() };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {/* */}
+      return next;
+    });
+  }, []);
+
   // 派生状态
   const getEmotion = useCallback((): Emotion => {
     if (state.isSleeping) return 'sleeping';
@@ -119,5 +138,6 @@ export function usePetState() {
     emotion,
     updateStats,
     changeRoom,
+    setCharacter,
   };
 }

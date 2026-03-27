@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PetState, Emotion } from './usePetState';
-import { HelpCircle, X } from 'lucide-react';
+import { HelpCircle, X, Palette } from 'lucide-react';
 
 interface PetHUDProps {
   state: PetState;
   emotion: Emotion;
+  onOpenCharacterSelect?: () => void;
 }
 
-export function PetHUD({ state, emotion }: PetHUDProps) {
+export function PetHUD({ state, emotion, onOpenCharacterSelect }: PetHUDProps) {
   const [showGuide, setShowGuide] = useState(false);
 
   const emotionInfo = {
@@ -31,8 +32,15 @@ export function PetHUD({ state, emotion }: PetHUDProps) {
             <span className="text-indigo-200 text-xs md:text-sm font-medium">{emotionInfo[emotion].text}</span>
             
             <button 
-              onClick={() => setShowGuide(true)}
+              onClick={onOpenCharacterSelect}
               className="ml-1 p-1 md:p-1.5 rounded-full text-indigo-300/60 hover:text-white hover:bg-white/10 transition-colors"
+              title="更换角色"
+            >
+              <Palette size={16} />
+            </button>
+            <button 
+              onClick={() => setShowGuide(true)}
+              className="p-1 md:p-1.5 rounded-full text-indigo-300/60 hover:text-white hover:bg-white/10 transition-colors"
               title="查看指南"
             >
               <HelpCircle size={16} />

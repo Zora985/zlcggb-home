@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoomId } from './usePetState';
-import { Home, Utensils, Droplet, Moon, Gamepad2 } from 'lucide-react';
+import { Home, Utensils, Droplet, Moon, Gamepad2, Wand2 } from 'lucide-react';
 
 interface RoomNavigationProps {
   currentRoom: RoomId;
@@ -15,6 +15,7 @@ export function RoomNavigation({ currentRoom, onChangeRoom, disabled }: RoomNavi
     { id: 'bathroom', label: '浴室', icon: <Droplet size={20} />, color: 'hover:text-cyan-400' },
     { id: 'bedroom', label: '卧室', icon: <Moon size={20} />, color: 'hover:text-indigo-400' },
     { id: 'playground', label: '游戏区', icon: <Gamepad2 size={20} />, color: 'hover:text-emerald-400' },
+    { id: 'workshop', label: '工坊', icon: <Wand2 size={20} />, color: 'hover:text-purple-400' },
   ];
 
   return (

@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePetState } from './pet/usePetState';
 import { PetHUD } from './pet/PetHUD';
 import { RoomNavigation } from './pet/RoomNavigation';
 import { PetEngine } from './pet/PetEngine';
+import { CharacterSelect } from './pet/CharacterSelect';
+import { getCharacter } from './pet/characters';
 
 // Rooms
 import { LivingRoom } from './pet/LivingRoom';
@@ -12,15 +14,19 @@ import { Kitchen } from './pet/Kitchen';
 import { Bathroom } from './pet/Bathroom';
 import { Bedroom } from './pet/Bedroom';
 import { Playground } from './pet/Playground';
+import { CreatorWorkshop } from './pet/CreatorWorkshop';
 
 export default function PetPage() {
-  const { state, emotion, updateStats, changeRoom } = usePetState();
+  const { state, emotion, updateStats, changeRoom, setCharacter } = usePetState();
   const [isLoaded, setIsLoaded] = useState(false);
   const [petX, setPetX] = useState(50);
   const [flipX, setFlipX] = useState(false);
   const [isWalking, setIsWalking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showCharacterSelect, setShowCharacterSelect] = useState(false);
   const navigate = useNavigate();
+
+  const currentChar = useMemo(() => getCharacter(state.characterId), [state.characterId]);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -34,7 +40,8 @@ export default function PetPage() {
     kitchen: 0.8,      // 偏向冰箱
     bathroom: 0.8,     // 偏向浴缸
     bedroom: 1.0,      // 偏向小床
-    playground: 0.5    // 游乐场居中
+    playground: 0.5,   // 游乐场居中
+    workshop: 0.5,
   };
 
   // 房间切换时重置位置，并让移动端全景自动平滑滚动到保存的位置或默认最佳位置
@@ -137,7 +144,7 @@ export default function PetPage() {
   // =============== 自由走动逻辑 ===============
   const handleSceneClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // 如果在游戏区，交由 Playground 内部处理；如果睡着了不能走
-    if (state.currentRoom === 'playground' || state.isSleeping) return;
+    if (state.currentRoom === 'playground' || state.currentRoom === 'workshop' || state.isSleeping) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = Math.max(10, Math.min(90, ((e.clientX - rect.left) / rect.width) * 100));
@@ -160,9 +167,11 @@ export default function PetPage() {
       case 'bathroom': 
         return <Bathroom onClean={handleClean} hygiene={state.hygiene} />;
       case 'bedroom': 
-        return <Bedroom onSleepToggle={handleSleepToggle} isSleeping={state.isSleeping} />;
+        return <Bedroom onSleepToggle={handleSleepToggle} isSleeping={state.isSleeping} sleepHeadColor={currentChar.sleepHeadColor} />;
       case 'playground': 
-        return <Playground onPlayResult={handlePlayResult} petX={petX} setPetX={setPetX} setFlip={setFlipX} setIsWalking={setIsWalking} setIsPlaying={setIsPlaying} />;
+        return <Playground onPlayResult={handlePlayResult} petX={petX} setPetX={setPetX} setFlip={setFlipX} setIsWalking={setIsWalking} setIsPlaying={setIsPlaying} characterFilter={currentChar.filter} />;
+      case 'workshop':
+        return <CreatorWorkshop onApplyCharacter={(id) => setCharacter(`creator-${id}`)} />;
       default: 
         return <LivingRoom />;
     }
@@ -184,12 +193,12 @@ export default function PetPage() {
       </button>
 
       {/* 核心容器层：强制约束为视口高度，禁止滚动 */}
-      <div className={`w-full max-w-[1000px] h-[100dvh] px-2 md:px-6 mx-auto flex flex-col justify-between gap-3 md:gap-4 relative transition-all duration-700 ease-in-out ${isPlaying ? 'pt-0 pb-0' : 'pt-16 md:pt-6 pb-24'}`}>
+      <div className={`w-full max-w-[1000px] lg:max-w-none h-[100dvh] px-2 md:px-6 lg:px-[3vw] mx-auto flex flex-col justify-between gap-3 md:gap-4 relative transition-all duration-700 ease-in-out ${isPlaying ? 'pt-0 pb-0' : 'pt-16 md:pt-6 pb-24'}`}>
         
         {/* ================= 顶部 HUD ================= */}
-        <div className={`flex-none w-full transition-all duration-[800ms] overflow-hidden origin-top ${isPlaying ? 'max-h-0 opacity-0 -translate-y-8' : 'max-h-[300px] opacity-100 translate-y-0'}`}>
+        <div className={`flex-none w-full lg:max-w-[1200px] lg:mx-auto transition-all duration-[800ms] overflow-hidden origin-top ${isPlaying ? 'max-h-0 opacity-0 -translate-y-8' : 'max-h-[300px] opacity-100 translate-y-0'}`}>
           <div className={`transition-all duration-1000 delay-100 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-            <PetHUD state={state} emotion={emotion} />
+            <PetHUD state={state} emotion={emotion} onOpenCharacterSelect={() => setShowCharacterSelect(true)} />
           </div>
         </div>
 
@@ -197,12 +206,12 @@ export default function PetPage() {
         <div 
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 w-full min-h-0 overflow-x-auto overflow-y-hidden snap-x snap-mandatory relative scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="flex-1 w-full min-h-0 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden snap-x snap-mandatory lg:snap-none relative scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
-          <div className="h-full min-w-full w-max flex justify-center">
+          <div className="pet-scene-wrapper h-full min-w-full w-max lg:w-full lg:min-w-0 flex justify-center lg:items-center">
             <div 
-              className={`relative h-full rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-black/50 transition-all duration-1000 delay-200 flex-none snap-center ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'}`}
-              style={{ aspectRatio: '16/9', width: 'auto' }}
+              className={`pet-scene-box relative h-full w-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-black/50 transition-all duration-1000 delay-200 flex-none snap-center ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'}`}
+              style={{ aspectRatio: '16/9' }}
               onClick={handleSceneClick}
             >
           {/* 渲染具体的场景 SVG 和交互 */}
@@ -211,13 +220,19 @@ export default function PetPage() {
           </div>
 
           {/* 核心宠物引擎 (在卧室睡觉时由于在被子里，所以实体隐形。游戏区由内部自行渲染实体) */}
-          {!(state.currentRoom === 'bedroom' && state.isSleeping) && state.currentRoom !== 'playground' && (
+          {!(state.currentRoom === 'bedroom' && state.isSleeping) &&
+            state.currentRoom !== 'playground' &&
+            state.currentRoom !== 'workshop' && (
             <PetEngine 
               emotion={emotion}
               x={petX}
               flipX={flipX}
               isWalking={isWalking}
               size={18}
+              characterFilter={currentChar.filter}
+              characterTemplate={currentChar.template}
+              characterColor={currentChar.bodyColor}
+              customSvgData={currentChar.svgData ?? null}
             />
           )}
 
@@ -228,7 +243,7 @@ export default function PetPage() {
         </div>
 
         {/* ================= 操作提示语 ================= */}
-        <div className={`flex-none text-center transition-all duration-[800ms] overflow-hidden origin-bottom ${isPlaying ? 'max-h-0 opacity-0 translate-y-8' : 'max-h-[100px] opacity-100 translate-y-0 delay-300'}`}>
+        <div className={`flex-none text-center lg:max-w-[1200px] lg:mx-auto w-full transition-all duration-[800ms] overflow-hidden origin-bottom ${isPlaying ? 'max-h-0 opacity-0 translate-y-8' : 'max-h-[100px] opacity-100 translate-y-0 delay-300'}`}>
           <div className={`transition-all duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
             <p className="text-indigo-200/50 text-xs md:text-sm font-medium tracking-wide">
               {state.currentRoom === 'living_room' && '💡 点击地板引导 Clawd 走动'}
@@ -236,6 +251,8 @@ export default function PetPage() {
               {state.currentRoom === 'bathroom' && '🚿 点击顶部的花洒给 Clawd 洗澡'}
               {state.currentRoom === 'bedroom' && '🌙 点击床头柜上的小黄鸭台灯关灯睡觉'}
               {state.currentRoom === 'playground' && '🎮 控制 Clawd 左右移动，接取天上掉落的星星'}
+              {state.currentRoom === 'workshop' &&
+                '🪄 AI 工坊：选择类型后描述想要的像素角色/场景/道具，生成后可保存或应用角色'}
             </p>
           </div>
         </div>
@@ -251,6 +268,28 @@ export default function PetPage() {
           }}
         />
       </div>
+
+      {/* ================= 角色选择面板 ================= */}
+      {showCharacterSelect && (
+        <CharacterSelect
+          currentId={state.characterId}
+          onSelect={setCharacter}
+          onClose={() => setShowCharacterSelect(false)}
+        />
+      )}
+
+      {/* 桌面端 contain-fit：用 Container Query 精确计算场景尺寸，确保 16:9 完整显示 */}
+      <style>{`
+        @media (min-width: 1024px) {
+          .pet-scene-wrapper {
+            container-type: size;
+          }
+          .pet-scene-box {
+            width: min(100cqw, calc(100cqh * 16 / 9));
+            height: auto;
+          }
+        }
+      `}</style>
     </div>
   );
 }

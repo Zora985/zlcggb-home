@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Emotion } from './usePetState';
+import { PixelCharacter, type CharacterTemplate, type CharacterAnimState } from './PixelCharacter';
+import { svgToDataUri } from '../../lib/creatorStore';
 
 interface PetEngineProps {
   emotion: Emotion;
   x: number;             // 0-100% position
   flipX: boolean;
   isWalking: boolean;
-  customSpriteUrl?: string | null; // Optional override for specific animations
+  customSpriteUrl?: string | null;
+  customSvgData?: string | null;
   size?: number;         // percentage size relative to height, default 18
+  characterFilter?: string;
+  characterTemplate?: CharacterTemplate;
+  characterColor?: string;
   className?: string;
   onClick?: () => void;
 }
@@ -35,26 +41,43 @@ function getSpriteForEmotion(emotion: Emotion, isWalking: boolean): string {
   }
 }
 
+function getAnimState(emotion: Emotion, isWalking: boolean): CharacterAnimState {
+  if (isWalking) return 'walking';
+  switch (emotion) {
+    case 'happy': return 'happy';
+    case 'sad':
+    case 'dizzy': return 'dizzy';
+    case 'sleeping': return 'sleeping';
+    default: return 'idle';
+  }
+}
+
 export function PetEngine({
   emotion,
   x,
   flipX,
   isWalking,
   customSpriteUrl,
+  customSvgData,
   size = 18,
+  characterFilter,
+  characterTemplate,
+  characterColor,
   className = '',
   onClick
 }: PetEngineProps) {
   const [spriteUrl, setSpriteUrl] = useState(SPRITES.idle);
 
-  // Smoothly update sprite mapping
   useEffect(() => {
+    if (customSvgData) return;
     if (customSpriteUrl) {
       setSpriteUrl(customSpriteUrl);
     } else {
       setSpriteUrl(getSpriteForEmotion(emotion, isWalking));
     }
-  }, [emotion, isWalking, customSpriteUrl]);
+  }, [emotion, isWalking, customSpriteUrl, customSvgData]);
+
+  const animState = useMemo(() => getAnimState(emotion, isWalking), [emotion, isWalking]);
 
   return (
     <div
@@ -72,20 +95,36 @@ export function PetEngine({
         aspectRatio: '1',
       }}
     >
-      {/* 宠物阴影 */}
       <div 
         className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-2 bg-black/30 blur-sm rounded-[100%]"
         style={{ transform: `scaleX(${isWalking ? 1.1 : 1})`, transition: 'transform 0.3s' }}
       />
-      
-      {/* 宠物本体 SVG */}
-      <img
-        src={spriteUrl}
-        alt="Clawd the pixel crab"
-        className="w-full h-full relative z-10 drop-shadow-md"
-        style={{ imageRendering: 'pixelated' }}
-        draggable={false}
-      />
+
+      {customSvgData ? (
+        <img
+          src={svgToDataUri(customSvgData)}
+          alt="Custom pet"
+          className="w-full h-full relative z-10 drop-shadow-md"
+          style={{ imageRendering: 'pixelated' }}
+          draggable={false}
+        />
+      ) : characterTemplate && characterColor ? (
+        <PixelCharacter
+          template={characterTemplate}
+          state={animState}
+          color={characterColor}
+          className="w-full h-full relative z-10 drop-shadow-md"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      ) : (
+        <img
+          src={spriteUrl}
+          alt="Clawd the pixel crab"
+          className="w-full h-full relative z-10 drop-shadow-md"
+          style={{ imageRendering: 'pixelated', filter: characterFilter }}
+          draggable={false}
+        />
+      )}
     </div>
   );
 }
