@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useContext, useEffect, useCallback } from 'react';
+import React, { useState, Suspense, useContext, useEffect } from 'react';
 import { TreeContext, TreeContextType, AppState, PointerCoords, CameraViewType, EditablePhotoConfig } from './christmas/types';
 import TechEffects from './christmas/TechEffects';
 import ControlPanel from './christmas/ControlPanel';

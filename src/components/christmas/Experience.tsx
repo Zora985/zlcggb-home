@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useEffect, useState, useMemo, Suspense } from 'react';
+import React, { useContext, useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, OrbitControls, Stars, Sparkles } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise } from '@react-three/postprocessing';

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { usePetState } from './pet/usePetState';
+import { usePetState, type RoomId } from './pet/usePetState';
 import { PetHUD } from './pet/PetHUD';
 import { RoomNavigation } from './pet/RoomNavigation';
 import { PetEngine } from './pet/PetEngine';
@@ -34,6 +34,16 @@ export default function PetPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const prevRoomRef = useRef<RoomId>(state.currentRoom);
+  const roomBeforeWorkshopRef = useRef<RoomId>('living_room');
+
+  useEffect(() => {
+    const prev = prevRoomRef.current;
+    if (state.currentRoom === 'workshop' && prev !== 'workshop') {
+      roomBeforeWorkshopRef.current = prev;
+    }
+    prevRoomRef.current = state.currentRoom;
+  }, [state.currentRoom]);
 
   const DEFAULT_SCROLL_RATIO: Record<string, number> = {
     living_room: 1.0,  // 偏向电视机(靠右)
@@ -177,97 +187,117 @@ export default function PetPage() {
     }
   };
 
+  const isWorkshopImmersive = state.currentRoom === 'workshop';
+
   return (
     <div className="fixed inset-0 z-[60] bg-[#0b0e14] font-sans text-white selection:bg-indigo-500/30 overflow-hidden flex flex-col items-center">
       
       {/* 提供全局的 Portal 挂载点，能够绝对覆盖整个页面区域，完美支持游戏计分板驻留屏幕边缘 */}
       <div id="scene-ui-portal" className="absolute inset-0 z-[100] pointer-events-none" />
 
-      {/* 退出按钮返回主站 */}
+      {/* 工坊沉浸式：仅「退出创作」回到宠物；其它房间：返回主站 */}
       <button 
-        onClick={() => navigate('/')} 
-        className={`absolute top-4 left-4 md:top-6 md:left-6 z-[70] p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white backdrop-blur-md transition-all duration-700 border border-white/5 shadow-xl ${isPlaying ? 'opacity-0 -translate-y-[150%] pointer-events-none' : 'opacity-100 translate-y-0'}`}
-        title="返回主页"
+        onClick={() => {
+          if (isWorkshopImmersive) {
+            if (state.isSleeping) updateStats({ isSleeping: false });
+            changeRoom(roomBeforeWorkshopRef.current);
+          } else {
+            navigate('/');
+          }
+        }} 
+        className={`absolute top-4 left-4 md:top-6 md:left-6 z-[70] px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white backdrop-blur-md transition-all duration-700 border border-white/5 shadow-xl text-xs font-medium flex items-center gap-1.5 ${isPlaying ? 'opacity-0 -translate-y-[150%] pointer-events-none' : 'opacity-100 translate-y-0'}`}
+        title={isWorkshopImmersive ? '退出创作' : '返回主页'}
       >
-        <ArrowLeft size={20} />
+        <ArrowLeft size={18} />
+        {isWorkshopImmersive ? <span className="hidden sm:inline max-w-[5rem] truncate">退出创作</span> : null}
       </button>
 
       {/* 核心容器层：强制约束为视口高度，禁止滚动 */}
-      <div className={`w-full max-w-[1000px] lg:max-w-none h-[100dvh] px-2 md:px-6 lg:px-[3vw] mx-auto flex flex-col justify-between gap-3 md:gap-4 relative transition-all duration-700 ease-in-out ${isPlaying ? 'pt-0 pb-0' : 'pt-16 md:pt-6 pb-24'}`}>
+      <div className={`w-full max-w-[1000px] lg:max-w-none h-[100dvh] mx-auto flex flex-col justify-between relative transition-all duration-700 ease-in-out ${isWorkshopImmersive ? 'max-w-none px-0 gap-0' : 'px-2 md:px-6 lg:px-[3vw] gap-3 md:gap-4'} ${isPlaying ? 'pt-0 pb-0' : isWorkshopImmersive ? 'pt-14 pb-0' : 'pt-16 md:pt-6 pb-24'}`}>
         
-        {/* ================= 顶部 HUD ================= */}
-        <div className={`flex-none w-full lg:max-w-[1200px] lg:mx-auto transition-all duration-[800ms] overflow-hidden origin-top ${isPlaying ? 'max-h-0 opacity-0 -translate-y-8' : 'max-h-[300px] opacity-100 translate-y-0'}`}>
-          <div className={`transition-all duration-1000 delay-100 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-            <PetHUD state={state} emotion={emotion} onOpenCharacterSelect={() => setShowCharacterSelect(true)} />
+        {/* ================= 顶部 HUD（工坊沉浸式时隐藏） ================= */}
+        {!isWorkshopImmersive && (
+          <div className={`flex-none w-full lg:max-w-[1200px] lg:mx-auto transition-all duration-[800ms] overflow-hidden origin-top ${isPlaying ? 'max-h-0 opacity-0 -translate-y-8' : 'max-h-[300px] opacity-100 translate-y-0'}`}>
+            <div className={`transition-all duration-1000 delay-100 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+              <PetHUD state={state} emotion={emotion} onOpenCharacterSelect={() => setShowCharacterSelect(true)} />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* ================= 主场景区 (响应式按宽高比适配，手机上可横向滑动浏览全景) ================= */}
-        <div 
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex-1 w-full min-h-0 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden snap-x snap-mandatory lg:snap-none relative scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        >
-          <div className="pet-scene-wrapper h-full min-w-full w-max lg:w-full lg:min-w-0 flex justify-center lg:items-center">
-            <div 
-              className={`pet-scene-box relative h-full w-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-black/50 transition-all duration-1000 delay-200 flex-none snap-center ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'}`}
-              style={{ aspectRatio: '16/9' }}
-              onClick={handleSceneClick}
-            >
-          {/* 渲染具体的场景 SVG 和交互 */}
-          <div className={`absolute inset-0 transition-opacity duration-500`}>
-            {renderRoom()}
+        {/* ================= 主场景区 ================= */}
+        {state.currentRoom === 'workshop' ? (
+          <div className="flex-1 w-full min-h-0 overflow-hidden relative">
+            <div className={`h-full w-full overflow-hidden bg-[#0b0e14] transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="absolute inset-0">
+                {renderRoom()}
+              </div>
+            </div>
           </div>
+        ) : (
+          <div 
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 w-full min-h-0 overflow-x-auto lg:overflow-x-hidden overflow-y-hidden snap-x snap-mandatory lg:snap-none relative scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          >
+            <div className="pet-scene-wrapper h-full min-w-full w-max lg:w-full lg:min-w-0 flex justify-center lg:items-center">
+              <div 
+                className={`pet-scene-box relative h-full w-auto rounded-2xl md:rounded-[2.5rem] overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.6)] bg-black/50 transition-all duration-1000 delay-200 flex-none snap-center ${isLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[0.98]'}`}
+                style={{ aspectRatio: '16/9' }}
+                onClick={handleSceneClick}
+              >
+            <div className={`absolute inset-0 transition-opacity duration-500`}>
+              {renderRoom()}
+            </div>
 
-          {/* 核心宠物引擎 (在卧室睡觉时由于在被子里，所以实体隐形。游戏区由内部自行渲染实体) */}
-          {!(state.currentRoom === 'bedroom' && state.isSleeping) &&
-            state.currentRoom !== 'playground' &&
-            state.currentRoom !== 'workshop' && (
-            <PetEngine 
-              emotion={emotion}
-              x={petX}
-              flipX={flipX}
-              isWalking={isWalking}
-              size={18}
-              characterFilter={currentChar.filter}
-              characterTemplate={currentChar.template}
-              characterColor={currentChar.bodyColor}
-              customSvgData={currentChar.svgData ?? null}
-            />
-          )}
+            {!(state.currentRoom === 'bedroom' && state.isSleeping) &&
+              state.currentRoom !== 'playground' && (
+              <PetEngine 
+                emotion={emotion}
+                x={petX}
+                flipX={flipX}
+                isWalking={isWalking}
+                size={18}
+                characterFilter={currentChar.filter}
+                characterTemplate={currentChar.template}
+                characterColor={currentChar.bodyColor}
+                customSvgData={currentChar.svgData ?? null}
+              />
+            )}
 
-          {/* 暗角滤镜：增加屏幕内沉浸感立体度 */}
-          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(0,0,0,0.7)] mix-blend-multiply" />
+            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(0,0,0,0.7)] mix-blend-multiply" />
+            </div>
+            </div>
           </div>
-          </div>
-        </div>
+        )}
 
-        {/* ================= 操作提示语 ================= */}
-        <div className={`flex-none text-center lg:max-w-[1200px] lg:mx-auto w-full transition-all duration-[800ms] overflow-hidden origin-bottom ${isPlaying ? 'max-h-0 opacity-0 translate-y-8' : 'max-h-[100px] opacity-100 translate-y-0 delay-300'}`}>
-          <div className={`transition-all duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-            <p className="text-indigo-200/50 text-xs md:text-sm font-medium tracking-wide">
-              {state.currentRoom === 'living_room' && '💡 点击地板引导 Clawd 走动'}
-              {state.currentRoom === 'kitchen' && '🍖 点击冰箱打开门，选择食物拖给 Clawd'}
-              {state.currentRoom === 'bathroom' && '🚿 点击顶部的花洒给 Clawd 洗澡'}
-              {state.currentRoom === 'bedroom' && '🌙 点击床头柜上的小黄鸭台灯关灯睡觉'}
-              {state.currentRoom === 'playground' && '🎮 控制 Clawd 左右移动，接取天上掉落的星星'}
-              {state.currentRoom === 'workshop' &&
-                '🪄 AI 工坊：选择类型后描述想要的像素角色/场景/道具，生成后可保存或应用角色'}
-            </p>
+        {/* ================= 操作提示语（工坊模式不显示，工坊内部有自己的提示） ================= */}
+        {state.currentRoom !== 'workshop' && (
+          <div className={`flex-none text-center lg:max-w-[1200px] lg:mx-auto w-full transition-all duration-[800ms] overflow-hidden origin-bottom ${isPlaying ? 'max-h-0 opacity-0 translate-y-8' : 'max-h-[100px] opacity-100 translate-y-0 delay-300'}`}>
+            <div className={`transition-all duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+              <p className="text-indigo-200/50 text-xs md:text-sm font-medium tracking-wide">
+                {state.currentRoom === 'living_room' && '💡 点击地板引导 Clawd 走动'}
+                {state.currentRoom === 'kitchen' && '🍖 点击冰箱打开门，选择食物拖给 Clawd'}
+                {state.currentRoom === 'bathroom' && '🚿 点击顶部的花洒给 Clawd 洗澡'}
+                {state.currentRoom === 'bedroom' && '🌙 点击床头柜上的小黄鸭台灯关灯睡觉'}
+                {state.currentRoom === 'playground' && '🎮 控制 Clawd 左右移动，接取天上掉落的星星'}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ================= 底部导航条 ================= */}
-      <div className={`transition-transform duration-[800ms] ease-in-out absolute w-full bottom-0 left-0 z-[80] ${isPlaying ? 'translate-y-[150%] pointer-events-none' : 'translate-y-0'}`}>
-        <RoomNavigation 
-          currentRoom={state.currentRoom}
-          onChangeRoom={(room) => {
-            if (state.isSleeping) updateStats({ isSleeping: false });
-            changeRoom(room);
-          }}
-        />
-      </div>
+      {/* ================= 底部房间导航（工坊沉浸式时由工坊内创作 Dock 替代） ================= */}
+      {!isWorkshopImmersive && (
+        <div className={`transition-transform duration-[800ms] ease-in-out absolute w-full bottom-0 left-0 z-[80] ${isPlaying ? 'translate-y-[150%] pointer-events-none' : 'translate-y-0'}`}>
+          <RoomNavigation 
+            currentRoom={state.currentRoom}
+            onChangeRoom={(room) => {
+              if (state.isSleeping) updateStats({ isSleeping: false });
+              changeRoom(room);
+            }}
+          />
+        </div>
+      )}
 
       {/* ================= 角色选择面板 ================= */}
       {showCharacterSelect && (

@@ -48,13 +48,14 @@ export function getSystemPrompt(mode: CreatorMode): string {
 `;
 
     case 'animation':
-      return `你是像素宠物游戏的「合成场景 + 动画」生成器。用户会提供已生成的角色/场景/道具 SVG 片段或描述，你需要把它们合并成一个统一的、带动画的场景 SVG。${COMMON_RULES}
+      return `你是像素宠物工坊的「补充说明」助手。重要：本应用已支持在客户端把画廊里的「场景 + 角色 + 道具」无损叠图并加 CSS 动效，**不会截断 SVG**。若用户粘贴的【场景】等片段明显以 “截断” 或省略号结尾，请用一两句中文明确建议他改用界面上的「生成本地合成预览」，不要强行重画整块背景。
 
-【合成动画场景】必须严格遵守：
-- 根元素：<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450" preserveAspectRatio="xMidYMid meet" overflow="visible">
-- 使用 <g> 分层：底层为场景（可简化用户提供的场景 path/rect），中层为道具，上层为角色；角色放在画面下方中间偏下，脚底在地面线上，缩放使其与 Clawd 比例协调（身体宽约 40–64 场景单位）
-- 在 <defs><style> 中编写 CSS 动画：至少 2 种动效（如角色 idle 呼吸、道具轻微浮动、背景微动或星光闪烁），使用 @keyframes，name 需加唯一前缀避免冲突（如 ws-anim-）
-- 若用户只提供部分素材，缺失部分用简洁像素几何补齐，保持风格统一
+仅当用户明确要你「从头画一张新场景」或提供 **完整未截断** 的各层素材并希望合并时，才输出一张合并后的 SVG。${COMMON_RULES}
+
+【若输出合并 SVG】必须严格遵守：
+- 根元素：<svg xmlns="http://www.w3.org/2000/svg" viewBox 与用户场景一致或 0 0 800 450，preserveAspectRatio="xMidYMid meet" overflow="visible"
+- 使用 <g> 分层：底层完整保留场景几何（不要随意删减用户给出的墙面/地面）；道具与角色叠在上层并用 transform 缩放与定位到底部互动区
+- 在 <defs><style> 写 CSS 动画：至少 2 种动效（角色呼吸、道具浮动等），@keyframes 名称加前缀 ws-aim-
 - 不要生成 script、外链、foreignObject、文字水印
 `;
 
@@ -72,7 +73,7 @@ export function getUserPromptPrefix(mode: CreatorMode): string {
     case 'prop':
       return '请根据以下描述生成像素风小道具 SVG（食物或玩具）：\n';
     case 'animation':
-      return '请根据下方素材与用户说明，合成一个带 CSS 动画的完整场景 SVG：\n';
+      return '（可选 AI）请在理解下方素材与说明后输出 SVG；若素材疑似截断，请先提示使用本地合成：\n';
     default:
       return '';
   }
