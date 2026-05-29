@@ -16,15 +16,75 @@ const COMMON_RULES = `
 export function getSystemPrompt(mode: CreatorMode): string {
   switch (mode) {
     case 'character':
-      return `你是像素宠物游戏的角色美术生成器。${COMMON_RULES}
+      return `你是虚拟宠物游戏的角色创意总监。
 
-【角色】必须严格遵守：
-- 根元素：<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="500" height="500" overflow="visible">
-- 角色身体主体宽度约 12–16 单位，脚底大致落在 y=13–16，水平居中对齐 x≈7.5（与现有螃蟹 Clawd 同比例，便于与食物/家具比例一致）
-- 在 <defs><style> 内写 CSS：至少包含轻微呼吸/待机动画（transform 或 translate），可选眨眼（scaleY）
-- 可加简单地面椭圆阴影（半透明 black rect 或 ellipse），随角色一起动或单独轻微动画
-- 不要生成文字、水印、emoji
-`;
+游戏引擎内置了多种像素风动画角色模板（会呼吸、眨眼、走路、弹跳），你的任务是根据用户描述选择最匹配的模板和颜色。
+
+【可用模板】
+- cat：像素猫咪 — 有三角耳、尾巴、胡须，适合猫、狐狸、小老虎等猫科动物
+- robot：像素机器人 — 有天线、LED 屏幕眼、方形身体，适合机器人、外星人、赛博等科幻角色
+- slime：像素史莱姆 — 果冻弹跳体、液滴装饰，适合史莱姆、水母、幽灵等软体角色
+- bunny：像素兔子 — 长耳朵、圆尾巴，适合兔子、仓鼠等小型萌系动物
+- bird：像素小鸟 — 尖嘴和翅膀，适合小鸟、企鹅、鹦鹉等鸟类
+- bear：像素小熊 — 圆耳朵、厚实身体，适合熊、熊猫、考拉等
+
+每种模板都自带完整的状态动画：待机呼吸、走路、开心弹跳、睡觉、眩晕
+
+【严格 JSON 输出格式】
+你必须在 \`\`\`json 代码块中输出且仅输出以下 JSON：
+
+\`\`\`json
+{
+  "template": "模板名",
+  "color": "#十六进制主色",
+  "name": "角色中文昵称（2-6字）",
+  "personality": "energetic 或 chill 或 curious 或 grumpy"
+}
+\`\`\`
+
+color 颜色规则：
+- 单个十六进制颜色，作为角色的主体色
+- 引擎会自动从主色生成深色和亮色变体
+- 颜色应与用户描述匹配（蓝色猫 → 蓝色系，橘猫 → 橘色系）
+
+选择策略：
+- 优先匹配用户描述的动物类型到最接近的模板
+- 如果描述的是"小猫"，选 cat；"小狗"也选 cat（四足动物最接近）
+- 如果描述不明确，推荐 cat 或 slime（最可爱）
+- 为动物选择最合适的颜色（橘猫→#DE886D，蓝色小猫→#6D9EDE）
+
+示例：
+用户："帮我画一只可爱的蓝色小猫"
+\`\`\`json
+{
+  "template": "cat",
+  "color": "#6D9EDE",
+  "name": "蓝蓝",
+  "personality": "curious"
+}
+\`\`\`
+
+用户："我要一个粉色的机器人"
+\`\`\`json
+{
+  "template": "robot",
+  "color": "#DE6DA8",
+  "name": "粉铁",
+  "personality": "energetic"
+}
+\`\`\`
+
+用户："生成一只绿色的青蛙"
+\`\`\`json
+{
+  "template": "slime",
+  "color": "#6DD68C",
+  "name": "呱呱",
+  "personality": "chill"
+}
+\`\`\`
+
+不要输出 JSON 以外的任何文字。`;
 
     case 'scene':
       return `你是像素宠物游戏的场景背景生成器。${COMMON_RULES}
@@ -48,7 +108,7 @@ export function getSystemPrompt(mode: CreatorMode): string {
 `;
 
     case 'animation':
-      return `你是像素宠物工坊的「补充说明」助手。重要：本应用已支持在客户端把画廊里的「场景 + 角色 + 道具」无损叠图并加 CSS 动效，**不会截断 SVG**。若用户粘贴的【场景】等片段明显以 “截断” 或省略号结尾，请用一两句中文明确建议他改用界面上的「生成本地合成预览」，不要强行重画整块背景。
+      return `你是像素宠物工坊的「补充说明」助手。重要：本应用已支持在客户端把画廊里的「场景 + 角色 + 道具」无损叠图并加 CSS 动效，**不会截断 SVG**。若用户粘贴的【场景】等片段明显以 "截断" 或省略号结尾，请用一两句中文明确建议他改用界面上的「生成本地合成预览」，不要强行重画整块背景。
 
 仅当用户明确要你「从头画一张新场景」或提供 **完整未截断** 的各层素材并希望合并时，才输出一张合并后的 SVG。${COMMON_RULES}
 
@@ -67,7 +127,7 @@ export function getSystemPrompt(mode: CreatorMode): string {
 export function getUserPromptPrefix(mode: CreatorMode): string {
   switch (mode) {
     case 'character':
-      return '请根据以下描述生成像素风宠物角色 SVG：\n';
+      return '请根据以下描述生成宠物角色配置：\n';
     case 'scene':
       return '请根据以下描述生成像素风室内/室外场景背景 SVG：\n';
     case 'prop':
@@ -85,4 +145,3 @@ export function truncateSvgForPrompt(svg: string, maxLen: number): string {
   if (t.length <= maxLen) return t;
   return `${t.slice(0, maxLen)}\n<!-- …(截断，共 ${t.length} 字符) -->`;
 }
-

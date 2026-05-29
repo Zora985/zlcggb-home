@@ -69,8 +69,28 @@ export function svgToDataUri(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encoded}`;
 }
 
-/** 从模型输出中提取第一个完整 SVG */
+/** 从模型输出中提取第一个完整 SVG 或 JSON 配置 */
 export function extractSvgFromAssistantText(text: string): string | null {
+  // 优先匹配 JSON 配置（template/seed/baseShape 配置）
+  const jsonFence = /```(?:json)?\s*([\s\S]*?)```/gi;
+  let jm: RegExpExecArray | null;
+  while ((jm = jsonFence.exec(text)) !== null) {
+    const inner = jm[1].trim();
+    if (inner.startsWith('{') && (inner.includes('"template"') || inner.includes('"seed"') || inner.includes('baseShape'))) {
+      return inner;
+    }
+  }
+
+  // 降级匹配完整裸露的 JSON
+  const startJson = text.indexOf('{');
+  if (startJson !== -1) {
+    const endJson = text.lastIndexOf('}');
+    if (endJson !== -1 && (text.includes('"template"') || text.includes('"seed"') || text.includes('"baseShape"'))) {
+       return text.slice(startJson, endJson + 1).trim();
+    }
+  }
+
+  // 匹配传统 SVG（兼容旧场景）
   const fence = /```(?:svg|html)?\s*([\s\S]*?)```/gi;
   let m: RegExpExecArray | null;
   while ((m = fence.exec(text)) !== null) {
@@ -88,9 +108,12 @@ export function extractSvgFromAssistantText(text: string): string | null {
   return text.slice(start, end + 6).trim();
 }
 
-/** 校验是否为可解析的 SVG（防 XSS：仅检查结构，不执行 script） */
+/** 校验是否为可解析的代码（SVG 防 XSS，JSON 信任解析器） */
 export function isProbablySafeSvg(svg: string): boolean {
-  const lower = svg.toLowerCase();
+  const trimmed = svg.trim();
+  if (trimmed.startsWith('{')) return true; // JSON is safe because we parse it locally
+  
+  const lower = trimmed.toLowerCase();
   if (!lower.includes('<svg')) return false;
   if (/<script|on\w+\s*=|href\s*=\s*["']?\s*javascript:/i.test(svg)) return false;
   return true;

@@ -89,6 +89,15 @@ html {
   animation: scaleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Apple-style glass effect */
 .glass {
   background: rgba(255, 255, 255, 0.72);
@@ -263,4 +272,262 @@ img {
   0% { opacity: 1; transform: translate(0, 0) scale(1); }
   100% { opacity: 0; transform: translate(var(--px, 20px), var(--py, -30px)) scale(0.3); }
 }
+
+/* ── Tiptap 编辑器高定苹果风格排版 ── */
+
+.ProseMirror {
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 专注模式隐藏元素 */
+.zen-mode-active .fixed-top-bar {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.zen-mode-active .fixed-top-bar:hover {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 呼吸感排版 */
+.ProseMirror p {
+  letter-spacing: 0.015em;
+  line-height: 1.8;
+  margin-top: 1.4em;
+  margin-bottom: 1.4em;
+  color: var(--apple-gray-500);
+  transition: opacity 0.3s ease;
+}
+
+/* 打字机聚焦模式下，非当前聚焦段落淡化 */
+.typewriter-mode-active .ProseMirror p:not(.ProseMirror-selectednode):not(:focus-within) {
+  opacity: 0.3;
+}
+
+/* 优雅的苹果风格引用块 */
+.ProseMirror blockquote {
+  border-left: 4px solid var(--apple-blue) !important;
+  background: rgba(0, 113, 227, 0.04);
+  padding: 1.25rem 1.5rem !important;
+  border-radius: 0 16px 16px 0;
+  color: var(--apple-gray-500) !important;
+  font-style: normal !important;
+  margin: 2rem 0 !important;
+  font-weight: 400 !important;
+}
+
+.ProseMirror blockquote p {
+  margin: 0 !important;
+  color: var(--apple-gray-500) !important;
+}
+
+/* 苹果风格行内代码 */
+.ProseMirror :not(pre) > code {
+  background-color: rgba(0, 113, 227, 0.06) !important;
+  color: var(--apple-blue) !important;
+  padding: 0.2em 0.4em !important;
+  border-radius: 6px !important;
+  font-size: 0.875em !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  word-break: break-word;
+  font-weight: 500 !important;
+}
+
+.ProseMirror :not(pre) > code::before,
+.ProseMirror :not(pre) > code::after {
+  content: "" !important;
+}
+
+/* 仿 macOS 终端风格的高级代码块 */
+.ProseMirror pre {
+  background: #1e1e2e !important; /* VS Code Catppuccin Dark */
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 16px !important;
+  padding: 2.75rem 1.25rem 1.25rem 1.25rem !important;
+  position: relative;
+  margin: 2rem 0 !important;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.35) !important;
+  overflow-x: auto;
+}
+
+/* macOS 窗口红黄绿圆点 */
+.ProseMirror pre::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ff5f56;
+  box-shadow: 16px 0 0 #ffbd2e, 32px 0 0 #27c93f;
+}
+
+/* 自动显示代码语言名 */
+.ProseMirror pre[data-language]::after {
+  content: attr(data-language);
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ProseMirror pre code {
+  font-family: 'JetBrains Mono', monospace !important;
+  color: #cdd6f4 !important;
+  background: none !important;
+  padding: 0 !important;
+  font-size: 0.875em !important;
+  line-height: 1.6 !important;
+  border-radius: 0 !important;
+}
+
+/* 图片高亮选中效果 */
+.ProseMirror img {
+  border-radius: 16px;
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 2px solid transparent;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+  outline: none;
+  border-color: var(--apple-blue);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.15), 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+}
+
+/* Placeholder 在标题与段落中的透明度 */
+.ProseMirror .is-empty::before {
+  color: var(--apple-gray-300);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  content: attr(data-placeholder);
+}
+
+/* ── 编辑区标题与列表“所见即所得”强力排版 ── */
+
+.ProseMirror h1 {
+  font-size: 2.25rem !important;
+  font-weight: 700 !important;
+  color: var(--apple-gray-600) !important;
+  margin-top: 2rem !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.ProseMirror h2 {
+  font-size: 1.65rem !important;
+  font-weight: 600 !important;
+  color: var(--apple-gray-600) !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.015em !important;
+}
+
+.ProseMirror h3 {
+  font-size: 1.35rem !important;
+  font-weight: 600 !important;
+  color: var(--apple-gray-600) !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.5rem !important;
+  line-height: 1.4 !important;
+}
+
+.ProseMirror ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.ProseMirror li {
+  margin-top: 0.35rem !important;
+  margin-bottom: 0.35rem !important;
+  color: var(--apple-gray-500) !important;
+  line-height: 1.6 !important;
+}
+
+.ProseMirror li p {
+  margin: 0 !important;
+  display: inline !important;
+}
+
+/* 高亮样式细节润色 */
+.ProseMirror mark {
+  border-radius: 6px !important;
+  padding: 0.15em 0.3em !important;
+}
+
+/* ── 自定义大纲细导线滚动条与微动效 ── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* ── 编辑器加号浮动按钮毛玻璃与微缩放旋转动效 ── */
+.editor-plus-btn {
+  backdrop-filter: saturate(180%) blur(8px);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.editor-plus-btn:hover {
+  transform: scale(1.1) rotate(90deg) !important;
+  background-color: var(--apple-blue) !important;
+  color: white !important;
+  border-color: var(--apple-blue) !important;
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.25) !important;
+}
+
+.editor-plus-btn:active {
+  transform: scale(0.95) rotate(90deg) !important;
+}
+
+/* ── 详情页表格高定样式美化 ── */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose table th,
+.prose table td {
+  padding: 12px 16px !important;
+}
+
+.prose table code {
+  background-color: rgba(0, 113, 227, 0.08) !important;
+  color: var(--apple-blue) !important;
+  padding: 0.2em 0.4em !important;
+  border-radius: 6px !important;
+  font-size: 0.85em !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 500 !important;
+  border: none !important;
+}
+
+
 

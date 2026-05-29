@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Sparkles, Trash2, Save, Download, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft } from 'lucide-react';
+import { Send, Sparkles, Trash2, Save, Download, ChevronDown, UserCircle2, History, Layers, MessageSquare, Image as ImageIcon, ImagePlus, Cat, Package, Images, Loader2, LayoutPanelLeft, Code2, Eye } from 'lucide-react';
 import { streamChatCompletion, isAiConfigured, type ChatMessage } from '../../lib/aiClient';
 import { getSystemPrompt, getUserPromptPrefix, truncateSvgForPrompt, type CreatorMode } from '../../lib/creatorPrompts';
 import { buildLayeredWorkshopComposite, type CompositeLayerProps } from '../../lib/workshopComposite';
@@ -28,7 +28,38 @@ import {
   shortenForSelectLabel,
   stripUserPromptPrefixForDisplay,
 } from '../../lib/creationNaming';
-import { downloadSvgAsFile } from '../../lib/svgDownload';
+import { canExportWebp, downloadSvgAsFile, downloadSvgAsRaster } from '../../lib/svgDownload';
+import { DynamicAvatar } from './DynamicAvatar';
+import { AvatarConfig } from './AvatarConfig';
+import { PixelCharacter, type CharacterTemplate } from './PixelCharacter';
+
+/** 像素角色模板配置（AI 输出 JSON 格式） */
+export interface TemplateConfig {
+  template: CharacterTemplate;
+  color: string;
+  name?: string;
+  personality?: string;
+}
+
+/** 尝试解析为像素模板配置 */
+function tryParseTemplateConfig(data: string | null | undefined): TemplateConfig | null {
+  if (!data || !data.trim().startsWith('{')) return null;
+  try {
+    const obj = JSON.parse(data);
+    if (obj && typeof obj.template === 'string') return obj as TemplateConfig;
+    return null;
+  } catch { return null; }
+}
+
+/** 兼容旧版 DynamicAvatar 配置 */
+function tryParseConfig(data: string | null | undefined): AvatarConfig | null {
+  if (!data || !data.trim().startsWith('{')) return null;
+  try {
+    const obj = JSON.parse(data);
+    if (obj && obj.baseShape) return obj as AvatarConfig;
+    return null;
+  } catch { return null; }
+}
 
 interface CreatorWorkshopProps {
   onApplyCharacter?: (creationId: string) => void;
@@ -63,6 +94,11 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
   const [showGallery, setShowGallery] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'chat' | 'preview'>('chat');
   const [svgCodeExpanded, setSvgCodeExpanded] = useState<Record<number, boolean>>({});
+  /** null = 自动预览最新一条，数字 = 锁定到特定消息 index */
+  const [previewMsgIndex, setPreviewMsgIndex] = useState<number | null>(null);
+  const [previewExportMenuOpen, setPreviewExportMenuOpen] = useState(false);
+  const [previewExportBusy, setPreviewExportBusy] = useState(false);
+  const previewExportMenuRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const workshopContextRef = useRef({ mode: 'character' as CreatorMode, pickSceneId: '', pickCharacterId: '', pickPropIds: [] as string[] });
@@ -127,7 +163,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     return rec;
   }, []);
 
-  const lastAssistantSvg = useMemo(() => {
+  /** 最新一条助手消息的 SVG（用于自动保存等副作用） */
+  const latestAssistantSvg = useMemo(() => {
     const last = [...messages].reverse().find((m) => m.role === 'assistant');
     if (!last) return null;
     const svg = extractSvgFromAssistantText(last.content);
@@ -135,9 +172,88 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     return svg;
   }, [messages]);
 
+  /** 预览面板当前显示的 SVG — 受 previewMsgIndex 控制 */
+  const previewSvg = useMemo(() => {
+    if (previewMsgIndex != null) {
+      const msg = messages[previewMsgIndex];
+      if (msg?.role === 'assistant') {
+        const svg = extractSvgFromAssistantText(msg.content);
+        if (svg && isProbablySafeSvg(svg)) return svg;
+      }
+    }
+    return latestAssistantSvg;
+  }, [messages, previewMsgIndex, latestAssistantSvg]);
+
+  /** 兼容旧名 — 在 apply / export 等逻辑中使用 */
+  const lastAssistantSvg = previewSvg;
+
+  /** 新消息到来时自动切回最新预览 */
+  useEffect(() => {
+    if (streaming) setPreviewMsgIndex(null);
+  }, [messages.length, streaming]);
+
+  /** streaming 期间的原始文本 — 用于预览区代码流式输出 */
+  const streamingRawText = useMemo(() => {
+    if (!streaming) return null;
+    const last = messages[messages.length - 1];
+    return last?.role === 'assistant' ? last.content : null;
+  }, [streaming, messages]);
+
+  const codeStreamRef = useRef<HTMLPreElement>(null);
+
+  /** 当前预览所对应的导出文件名（与最后一条带 SVG 的助手消息一致） */
+  const previewExportBasename = useMemo(() => {
+    for (let k = messages.length - 1; k >= 0; k--) {
+      if (messages[k].role !== 'assistant') continue;
+      const svg = extractSvgFromAssistantText(messages[k].content);
+      if (!svg || !isProbablySafeSvg(svg)) continue;
+      const msg = messages[k];
+      const linked = msg.galleryLinkedId ? getCreation(msg.galleryLinkedId) : undefined;
+      if (linked?.name) return linked.name;
+      let prevUser = '';
+      for (let j = k - 1; j >= 0; j--) {
+        if (messages[j].role === 'user') {
+          prevUser = messages[j].content;
+          break;
+        }
+      }
+      return deriveCreationShortName(prevUser, mode);
+    }
+    return 'preview';
+  }, [messages, mode, galleryTick]);
+
+  const webpExportSupported = useMemo(() => canExportWebp(), []);
+
+  useEffect(() => {
+    if (!previewExportMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (previewExportMenuRef.current && !previewExportMenuRef.current.contains(e.target as Node)) {
+        setPreviewExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [previewExportMenuOpen]);
+
+  useEffect(() => {
+    if (!lastAssistantSvg) setPreviewExportMenuOpen(false);
+  }, [lastAssistantSvg]);
+
   useEffect(() => {
     if (lastAssistantSvg && !streaming) setMobilePanel('preview');
   }, [lastAssistantSvg, streaming]);
+
+  /* streaming 开始时自动切到预览面板看代码流 */
+  useEffect(() => {
+    if (streaming) setMobilePanel('preview');
+  }, [streaming]);
+
+  /* streaming 期间 pre 代码区自动滚到底部 */
+  useEffect(() => {
+    if (codeStreamRef.current && streaming) {
+      codeStreamRef.current.scrollTop = codeStreamRef.current.scrollHeight;
+    }
+  }, [streamingRawText, streaming]);
 
   useEffect(() => {
     if (mobilePanel === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -160,6 +276,7 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       setError(null);
       setMobilePanel('chat');
       setSvgCodeExpanded({});
+      setPreviewExportMenuOpen(false);
       lastAutoSavedSvgKeyRef.current = null;
       lastGallerySaveRef.current = null;
     },
@@ -322,6 +439,37 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     [messages, mode],
   );
 
+  const runPreviewPanelExport = useCallback(
+    async (kind: 'svg' | 'png' | 'webp') => {
+      if (!lastAssistantSvg) return;
+      setPreviewExportBusy(true);
+      setError(null);
+      try {
+        // 如果是 template JSON 配置，不直接导出 SVG（因为是 React 组件渲染的）
+        const templateCfg = tryParseTemplateConfig(lastAssistantSvg);
+        const exportSvg = templateCfg ? lastAssistantSvg : lastAssistantSvg;
+
+        if (kind === 'svg') {
+          downloadSvgAsFile(exportSvg, previewExportBasename);
+        } else if (kind === 'webp') {
+          if (!webpExportSupported) {
+            setError('当前浏览器不支持 WebP 导出，请改用 PNG');
+            return;
+          }
+          await downloadSvgAsRaster(exportSvg, previewExportBasename, 'image/webp');
+        } else {
+          await downloadSvgAsRaster(exportSvg, previewExportBasename, 'image/png');
+        }
+        setPreviewExportMenuOpen(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '导出失败');
+      } finally {
+        setPreviewExportBusy(false);
+      }
+    },
+    [lastAssistantSvg, previewExportBasename, webpExportSupported],
+  );
+
   const handleApplyCharacter = useCallback(() => {
     if (!lastAssistantSvg || !isProbablySafeSvg(lastAssistantSvg)) return;
     const lastAsst = [...messages].reverse().find((m) => m.role === 'assistant');
@@ -430,8 +578,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
     const rec = persistGeneratedSvg(svg, merged);
     const withLink: WorkshopChatMsg[] = rec
       ? merged.map((m, idx) =>
-          idx === merged.length - 1 && m.role === 'assistant' ? { ...m, galleryLinkedId: rec.id } : m,
-        )
+        idx === merged.length - 1 && m.role === 'assistant' ? { ...m, galleryLinkedId: rec.id } : m,
+      )
       : merged;
     setMessages(withLink);
     setError(null);
@@ -445,8 +593,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
   const emptyHint = mode === 'character'
     ? '描述你想要的像素风宠物角色，AI 会流式输出 SVG。'
     : mode === 'scene' ? '描述像素风房间或室外场景。'
-    : mode === 'prop' ? '描述食物、玩具等小道具。'
-    : '下方先选场景与角色，点「生成本地合成」；或展开与 AI 对话（易截断）。';
+      : mode === 'prop' ? '描述食物、玩具等小道具。'
+        : '下方先选场景与角色，点「生成本地合成」；或展开与 AI 对话（易截断）。';
 
   const hasSvg = !!lastAssistantSvg;
 
@@ -472,20 +620,18 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
       {/* === 移动端面板切换 (< lg)；合成模式文案区分「搭景 / 画布」=== */}
       <div className="flex-none flex lg:hidden border-b border-white/10 bg-[#0a0d1a]">
         <button type="button" onClick={() => setMobilePanel('chat')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
-            mobilePanel === 'chat'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${mobilePanel === 'chat'
               ? 'text-white bg-white/5 border-b-2 border-indigo-400'
               : 'text-indigo-300/50 hover:text-indigo-200/70'
-          }`}>
+            }`}>
           {mode === 'animation' ? <LayoutPanelLeft size={14} /> : <MessageSquare size={14} />}
           {mode === 'animation' ? '搭景' : '对话'}
         </button>
         <button type="button" onClick={() => setMobilePanel('preview')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors relative ${
-            mobilePanel === 'preview'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors relative ${mobilePanel === 'preview'
               ? 'text-white bg-white/5 border-b-2 border-indigo-400'
               : 'text-indigo-300/50 hover:text-indigo-200/70'
-          }`}>
+            }`}>
           <ImageIcon size={14} /> {mode === 'animation' ? '画布' : '预览'}
           {hasSvg && mobilePanel === 'chat' && (
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -542,9 +688,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
                   <div className="flex flex-wrap gap-1">
                     {creationsByType.prop.map((c) => (
                       <button key={c.id} type="button" onClick={() => togglePropPick(c.id)}
-                        className={`px-2 py-1 rounded-md text-[10px] border ${
-                          pickPropIds.includes(c.id) ? 'bg-amber-500/35 border-amber-400/50 text-amber-50' : 'bg-white/5 border-white/10 text-indigo-200/80'
-                        }`} title={c.name}>{shortenForSelectLabel(c.name, 16)}</button>
+                        className={`px-2 py-1 rounded-md text-[10px] border ${pickPropIds.includes(c.id) ? 'bg-amber-500/35 border-amber-400/50 text-amber-50' : 'bg-white/5 border-white/10 text-indigo-200/80'
+                          }`} title={c.name}>{shortenForSelectLabel(c.name, 16)}</button>
                     ))}
                   </div>
                 </div>
@@ -605,14 +750,40 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
               const linkedRecord = msg.galleryLinkedId ? getCreation(msg.galleryLinkedId) : undefined;
               const svgInGallery = Boolean(linkedRecord);
               const saveThisDisabled = streaming && isLast;
+              const isCurrentPreview = hasSvgBubble && (
+                previewMsgIndex === i || (previewMsgIndex == null && isLast && !streaming)
+              );
+              const templateCfgInMsg = hasSvgBubble ? tryParseTemplateConfig(extracted!) : null;
 
               if (hasSvgBubble && !svgCodeExpanded[i]) {
                 return (
                   <div key={i} className="flex justify-start">
-                    <div className="max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 py-2.5 text-sm border border-emerald-500/30 bg-emerald-500/[0.12] text-indigo-50 shadow-sm shadow-emerald-900/20">
+                    <div
+                      className={`max-w-[90%] sm:max-w-[85%] rounded-2xl px-3 py-2.5 text-sm border shadow-sm transition-all duration-200 cursor-pointer ${
+                        isCurrentPreview
+                          ? 'border-amber-400/50 bg-amber-500/[0.15] ring-1 ring-amber-400/30 shadow-amber-900/20'
+                          : 'border-emerald-500/30 bg-emerald-500/[0.12] shadow-emerald-900/20 hover:border-emerald-400/50 hover:bg-emerald-500/[0.18]'
+                      } text-indigo-50`}
+                      onClick={() => {
+                        setPreviewMsgIndex(i);
+                        setMobilePanel('preview');
+                      }}
+                    >
                       <div className="flex items-center gap-2 font-semibold text-emerald-100/95">
-                        <Sparkles className="shrink-0 text-emerald-300" size={16} />
-                        {isLocalComposite ? '本地合成完成' : '已生成像素图'}
+                        {/* 小缩略图 */}
+                        {templateCfgInMsg ? (
+                          <div className="shrink-0 w-7 h-7 overflow-hidden rounded">
+                            <PixelCharacter template={templateCfgInMsg.template} state="idle" color={templateCfgInMsg.color} className="w-full h-full" />
+                          </div>
+                        ) : (
+                          <Sparkles className="shrink-0 text-emerald-300" size={16} />
+                        )}
+                        <span className="flex-1">{isLocalComposite ? '本地合成完成' : '已生成像素图'}</span>
+                        {isCurrentPreview && (
+                          <span className="shrink-0 flex items-center gap-0.5 text-[10px] font-medium text-amber-300/90">
+                            <Eye size={11} />预览中
+                          </span>
+                        )}
                       </div>
                       <div className="mt-1.5 space-y-1.5">
                         {svgInGallery ? (
@@ -761,18 +932,95 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
             ? 'lg:flex-1 lg:min-w-0 lg:border-l lg:border-t-0'
             : 'lg:w-1/2 lg:max-w-[50%] lg:flex-none lg:border-l lg:border-t-0'}
         `}>
-          <div className="flex-none px-3 py-2 text-xs font-semibold text-indigo-200/60 flex items-center gap-1.5 border-b border-white/5">
-            <Sparkles size={14} /> {mode === 'animation' ? '画布' : '预览'}
+          <div className="flex-none px-3 py-2 border-b border-white/5 flex items-center justify-between gap-2 min-h-[2.5rem]">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-200/60 shrink-0">
+              <Sparkles size={14} /> {mode === 'animation' ? '画布' : '预览'}
+            </div>
+            <div className="relative shrink-0" ref={previewExportMenuRef}>
+              <button
+                type="button"
+                disabled={!lastAssistantSvg || previewExportBusy || streaming}
+                onClick={() => setPreviewExportMenuOpen((o) => !o)}
+                className="inline-flex items-center gap-0.5 sm:gap-1 pl-2 pr-1.5 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold bg-sky-600/40 text-sky-50 hover:bg-sky-500/55 disabled:opacity-40 disabled:cursor-not-allowed border border-sky-400/35 shadow-sm shadow-sky-900/20"
+                title="导出当前预览的 SVG / 图片"
+              >
+                <Download size={13} className="shrink-0" />
+                导出
+                <ChevronDown size={14} className="shrink-0 opacity-80" />
+              </button>
+              {previewExportMenuOpen && lastAssistantSvg ? (
+                <div className="absolute right-0 top-[calc(100%+4px)] w-44 rounded-xl border border-white/15 bg-[#0c1022]/98 backdrop-blur-md shadow-2xl py-1 z-[100]">
+                  <button
+                    type="button"
+                    disabled={previewExportBusy}
+                    className="w-full text-left px-3 py-2 text-xs text-indigo-50 hover:bg-white/10 disabled:opacity-50"
+                    onClick={() => void runPreviewPanelExport('svg')}
+                  >
+                    矢量 · SVG
+                  </button>
+                  <button
+                    type="button"
+                    disabled={previewExportBusy}
+                    className="w-full text-left px-3 py-2 text-xs text-indigo-50 hover:bg-white/10 disabled:opacity-50"
+                    onClick={() => void runPreviewPanelExport('png')}
+                  >
+                    位图 · PNG
+                  </button>
+                  <button
+                    type="button"
+                    disabled={previewExportBusy || !webpExportSupported}
+                    className="w-full text-left px-3 py-2 text-xs text-indigo-50 hover:bg-white/10 disabled:opacity-40"
+                    title={!webpExportSupported ? '此浏览器不支持 WebP 导出' : undefined}
+                    onClick={() => void runPreviewPanelExport('webp')}
+                  >
+                    位图 · WebP
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
-          <div className="flex-1 flex items-center justify-center p-3 sm:p-6 min-h-0"
+          <div className={`flex-1 flex min-h-0 overflow-hidden ${lastAssistantSvg ? 'items-center justify-center p-3 sm:p-6' : streaming && streamingRawText != null ? 'flex-col p-0' : 'items-center justify-center p-3 sm:p-6'}`}
             style={{
-              backgroundImage: 'linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px)',
+              backgroundImage: lastAssistantSvg ? 'linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px)' : 'none',
               backgroundSize: '16px 16px',
             }}>
             {lastAssistantSvg ? (
-              <img src={svgToDataUri(lastAssistantSvg)} alt="preview"
-                className="max-w-[96%] lg:max-w-full w-auto h-auto object-contain drop-shadow-2xl max-h-[52vh] lg:max-h-[min(78vh,720px)]"
-                style={{ imageRendering: 'pixelated' }} />
+              tryParseTemplateConfig(lastAssistantSvg) ? (
+                <div className="w-full h-full max-w-[96%] lg:max-w-full drop-shadow-2xl max-h-[52vh] flex flex-col items-center justify-center">
+                  <div className="w-[80vw] h-[80vw] max-w-[360px] max-h-[360px] flex items-center justify-center">
+                    <PixelCharacter
+                      template={tryParseTemplateConfig(lastAssistantSvg)!.template}
+                      state="idle"
+                      color={tryParseTemplateConfig(lastAssistantSvg)!.color}
+                    />
+                  </div>
+                  {tryParseTemplateConfig(lastAssistantSvg)?.name && (
+                    <p className="text-center text-indigo-100 text-lg font-bold mt-4">
+                      {tryParseTemplateConfig(lastAssistantSvg)!.name}
+                    </p>
+                  )}
+                </div>
+              ) : tryParseConfig(lastAssistantSvg) ? (
+                <div className="w-full h-full max-w-[96%] lg:max-w-full drop-shadow-2xl max-h-[52vh] flex items-center justify-center">
+                  <DynamicAvatar config={tryParseConfig(lastAssistantSvg)!} state="idle" className="w-[80vw] h-[80vw] max-w-[400px] max-h-[400px]" />
+                </div>
+              ) : (
+                <img src={svgToDataUri(lastAssistantSvg)} alt="preview"
+                  className="max-w-[96%] lg:max-w-full w-auto h-auto object-contain drop-shadow-2xl max-h-[52vh] lg:max-h-[min(78vh,720px)]"
+                  style={{ imageRendering: 'pixelated' }} />
+              )
+            ) : streaming && streamingRawText != null ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex-none flex items-center gap-2 px-3 py-2 border-b border-emerald-500/20 bg-emerald-500/[0.06]">
+                  <Code2 size={14} className="text-emerald-400 shrink-0" />
+                  <span className="text-[11px] font-semibold text-emerald-200/90">SVG 代码生成中…</span>
+                  <Loader2 size={12} className="animate-spin text-emerald-400/70 ml-auto shrink-0" />
+                </div>
+                <pre
+                  ref={codeStreamRef}
+                  className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 text-[10px] sm:text-[11px] leading-relaxed font-mono text-emerald-100/80 bg-[#080c14] whitespace-pre-wrap break-all select-text"
+                >{streamingRawText || '等待输出…'}</pre>
+              </div>
             ) : (
               <div className="text-center space-y-3 px-4">
                 <Sparkles className="w-10 h-10 text-indigo-400/15 mx-auto" />
@@ -813,9 +1061,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           <div className="flex-1 flex items-center gap-1 overflow-x-auto py-0.5 [&::-webkit-scrollbar]:h-0">
             {MODE_TABS.map(({ id, label }) => (
               <button key={id} type="button" disabled={streaming} onClick={() => goMode(id)}
-                className={`shrink-0 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${
-                  mode === id ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-900/30' : 'bg-white/5 text-indigo-200/80 hover:bg-white/10'
-                }`}
+                className={`shrink-0 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors ${mode === id ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-900/30' : 'bg-white/5 text-indigo-200/80 hover:bg-white/10'
+                  }`}
               >{label}</button>
             ))}
           </div>
@@ -823,9 +1070,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
             type="button"
             disabled={streaming}
             onClick={() => setShowHistory((v) => !v)}
-            className={`shrink-0 flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl border text-[10px] font-medium min-w-[3rem] transition-colors ${
-              showHistory ? 'bg-violet-500/25 border-violet-400/40 text-violet-100' : 'bg-white/5 border-white/10 text-indigo-200/70 hover:bg-white/10'
-            }`}
+            className={`shrink-0 flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl border text-[10px] font-medium min-w-[3rem] transition-colors ${showHistory ? 'bg-violet-500/25 border-violet-400/40 text-violet-100' : 'bg-white/5 border-white/10 text-indigo-200/70 hover:bg-white/10'
+              }`}
             title="查看「暂存对话」列表，恢复聊天内容（不是画廊）"
           >
             <History size={16} />
@@ -834,9 +1080,8 @@ export function CreatorWorkshop({ onApplyCharacter }: CreatorWorkshopProps) {
           <button
             type="button"
             onClick={() => setShowGallery((v) => !v)}
-            className={`shrink-0 flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl border text-[10px] font-medium min-w-[3rem] transition-colors ${
-              showGallery ? 'bg-amber-500/20 border-amber-400/40 text-amber-100' : 'bg-white/5 border-white/10 text-indigo-200/70 hover:bg-white/10'
-            }`}
+            className={`shrink-0 flex flex-col items-center justify-center gap-0.5 px-2.5 py-1 rounded-xl border text-[10px] font-medium min-w-[3rem] transition-colors ${showGallery ? 'bg-amber-500/20 border-amber-400/40 text-amber-100' : 'bg-white/5 border-white/10 text-indigo-200/70 hover:bg-white/10'
+              }`}
             title="画廊"
           >
             <Images size={16} />
@@ -857,8 +1102,8 @@ function ActionBtn({ icon, label, variant, className = '', title: tip, onClick, 
   const colors = variant === 'green'
     ? 'bg-emerald-600/50 hover:bg-emerald-600/70 text-emerald-100'
     : variant === 'violet'
-    ? 'bg-violet-500/30 hover:bg-violet-500/50 text-violet-100'
-    : 'bg-white/10 hover:bg-white/15 text-indigo-200/80';
+      ? 'bg-violet-500/30 hover:bg-violet-500/50 text-violet-100'
+      : 'bg-white/10 hover:bg-white/15 text-indigo-200/80';
   return (
     <button type="button" title={tip} onClick={onClick} disabled={disabled} className={`${base} ${colors} ${className}`}>
       {icon}{label}
@@ -869,11 +1114,24 @@ function ActionBtn({ icon, label, variant, className = '', title: tip, onClick, 
 function GalleryThumb({ record, onDelete, onApplyCharacter }: {
   record: CreationRecord; onDelete: () => void; onApplyCharacter?: (id: string) => void;
 }) {
+  const templateConfig = tryParseTemplateConfig(record.svgData);
+  const oldConfig = tryParseConfig(record.svgData);
   return (
     <div className="flex-shrink-0 w-16 sm:w-20 flex flex-col rounded-lg border border-white/10 bg-white/5 overflow-hidden">
       <div className="h-12 sm:h-14 flex items-center justify-center bg-[#0b0e14] p-0.5">
-        <img src={svgToDataUri(record.svgData)} alt={record.name}
-          className="max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+        {templateConfig ? (
+          <PixelCharacter
+            template={templateConfig.template}
+            state="idle"
+            color={templateConfig.color}
+            className="max-w-full max-h-full"
+          />
+        ) : oldConfig ? (
+          <DynamicAvatar config={oldConfig} className="max-w-full max-h-full" />
+        ) : (
+          <img src={svgToDataUri(record.svgData)} alt={record.name}
+            className="max-w-full max-h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+        )}
       </div>
       <div className="px-1 py-0.5 flex flex-col gap-0.5">
         <span className="text-[9px] sm:text-[10px] text-indigo-100/80 truncate text-center" title={record.name}>
@@ -886,7 +1144,7 @@ function GalleryThumb({ record, onDelete, onApplyCharacter }: {
           )}
           <button
             type="button"
-            title="下载 SVG"
+            title="下载"
             onClick={() => downloadSvgAsFile(record.svgData, record.name)}
             className="p-0.5 rounded bg-sky-500/25 text-sky-200 hover:bg-sky-500/40"
           >

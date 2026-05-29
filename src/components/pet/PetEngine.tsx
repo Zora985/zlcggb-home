@@ -2,6 +2,28 @@ import { useEffect, useState, useMemo } from 'react';
 import { Emotion } from './usePetState';
 import { PixelCharacter, type CharacterTemplate, type CharacterAnimState } from './PixelCharacter';
 import { svgToDataUri } from '../../lib/creatorStore';
+import { DynamicAvatar } from './DynamicAvatar';
+import { AvatarConfig } from './AvatarConfig';
+
+// Helper: 解析旧版 DynamicAvatar 配置
+function tryParseConfig(data: string | null | undefined): AvatarConfig | null {
+  if (!data || !data.trim().startsWith('{')) return null;
+  try {
+    const obj = JSON.parse(data);
+    if (obj && obj.baseShape) return obj as AvatarConfig;
+    return null;
+  } catch { return null; }
+}
+
+// Helper: 解析新版 template 配置
+function tryParseTemplateConfig(data: string | null | undefined): { template: CharacterTemplate; color: string; name?: string } | null {
+  if (!data || !data.trim().startsWith('{')) return null;
+  try {
+    const obj = JSON.parse(data);
+    if (obj && typeof obj.template === 'string') return obj;
+    return null;
+  } catch { return null; }
+}
 
 interface PetEngineProps {
   emotion: Emotion;
@@ -77,14 +99,15 @@ export function PetEngine({
     }
   }, [emotion, isWalking, customSpriteUrl, customSvgData]);
 
+  const parsedConfig = tryParseConfig(customSvgData);
+  const templateConfig = tryParseTemplateConfig(customSvgData);
   const animState = useMemo(() => getAnimState(emotion, isWalking), [emotion, isWalking]);
 
   return (
     <div
       onClick={onClick}
-      className={`absolute bottom-[10%] z-20 ${
-        onClick ? 'cursor-pointer pointer-events-auto' : 'pointer-events-none'
-      } ${className}`}
+      className={`absolute bottom-[10%] z-20 ${onClick ? 'cursor-pointer pointer-events-auto' : 'pointer-events-none'
+        } ${className}`}
       style={{
         left: `${x}%`,
         transform: `translateX(-50%) scaleX(${flipX ? -1 : 1})`,
@@ -95,19 +118,32 @@ export function PetEngine({
         aspectRatio: '1',
       }}
     >
-      <div 
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-2 bg-black/30 blur-sm rounded-[100%]"
-        style={{ transform: `scaleX(${isWalking ? 1.1 : 1})`, transition: 'transform 0.3s' }}
-      />
+
 
       {customSvgData ? (
-        <img
-          src={svgToDataUri(customSvgData)}
-          alt="Custom pet"
-          className="w-full h-full relative z-10 drop-shadow-md"
-          style={{ imageRendering: 'pixelated' }}
-          draggable={false}
-        />
+        templateConfig ? (
+          <PixelCharacter
+            template={templateConfig.template}
+            state={animState}
+            color={templateConfig.color}
+            className="w-full h-full relative z-10 drop-shadow-md"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        ) : parsedConfig ? (
+          <DynamicAvatar 
+            config={parsedConfig} 
+            state={getAnimState(emotion, isWalking) as any} 
+            className="w-full h-full relative z-10 drop-shadow-md" 
+          />
+        ) : (
+          <img
+            src={svgToDataUri(customSvgData)}
+            alt="Custom pet"
+            className="w-full h-full relative z-10 drop-shadow-md"
+            style={{ imageRendering: 'pixelated' }}
+            draggable={false}
+          />
+        )
       ) : characterTemplate && characterColor ? (
         <PixelCharacter
           template={characterTemplate}

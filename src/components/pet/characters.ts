@@ -109,6 +109,24 @@ export function getCharacter(id: string): CharacterDef {
     const creationId = id.slice('creator-'.length);
     const c = getCreation(creationId);
     if (c?.type === 'character' && c.svgData) {
+      // 尝试解析为新的 template 配置
+      try {
+        const config = JSON.parse(c.svgData);
+        if (config.template) {
+          return {
+            id: `creator-${c.id}`,
+            name: config.name || c.name,
+            emoji: '✨',
+            description: c.description || 'AI 工坊创作',
+            bodyColor: config.color || '#DE886D',
+            sleepHeadColor: config.color || '#f97316',
+            template: config.template as CharacterTemplate,
+            svgData: undefined, // 使用 template 渲染，不需要 svgData
+          };
+        }
+      } catch {
+        // 非 JSON 或无 template 字段，降级到 svgData 渲染
+      }
       return {
         id: `creator-${c.id}`,
         name: c.name,

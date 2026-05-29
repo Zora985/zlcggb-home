@@ -329,6 +329,47 @@ export default function TutorialDetail() {
           // 捕获异常
         }
       }
+
+      // 后处理 3: 为代码块 (pre) 动态注入复制按钮
+      const preElements = proseContainer.querySelectorAll('pre');
+      preElements.forEach((preEl) => {
+        const codeEl = preEl.querySelector('code');
+        if (!codeEl) return;
+        
+        // 避开可能还未完全从 DOM 替换完成的特殊模块
+        const isSpecial = codeEl.classList.contains('language-mermaid') || 
+                          codeEl.classList.contains('language-table') ||
+                          preEl.getAttribute('data-language') === 'mermaid' ||
+                          preEl.getAttribute('data-language') === 'table';
+        if (isSpecial) return;
+
+        // 防止重复注入
+        if (preEl.querySelector('.copy-code-btn')) return;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-code-btn absolute top-3 right-3 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-200 z-10 flex items-center justify-center';
+        copyBtn.setAttribute('title', '复制代码');
+        
+        const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-400"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+        copyBtn.innerHTML = copyIcon;
+        preEl.appendChild(copyBtn);
+
+        copyBtn.addEventListener('click', async () => {
+          const text = codeEl.textContent || '';
+          try {
+            await navigator.clipboard.writeText(text);
+            copyBtn.innerHTML = checkIcon;
+            
+            setTimeout(() => {
+              copyBtn.innerHTML = copyIcon;
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy code:', err);
+          }
+        });
+      });
     });
   }, [editor, tutorial]);
 

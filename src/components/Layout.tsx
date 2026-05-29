@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Github, Mail } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Github, Mail, LogOut, Plus, ChevronDown } from 'lucide-react';
+import { useAuth } from '../lib/useAuth';
+import LoginModal from './lab/LoginModal';
 
 // B站图标组件
 const BilibiliIcon = ({ size = 16 }: { size?: number }) => (
@@ -65,7 +67,30 @@ const FusionLogo = ({ className = "", isDark = false }: { className?: string; is
 export default function Layout({ children, currentPage }: LayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, isAdmin, signOut } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭用户菜单
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showUserMenu]);
+
+  async function handleSignOut() {
+    await signOut();
+    setShowUserMenu(false);
+  }
   
   // 判断是否是深色主题页面（圣诞树 / 电子宠物）
   const isChristmasPage = currentPage === 'christmas' || currentPage === 'pet';
@@ -143,6 +168,64 @@ export default function Layout({ children, currentPage }: LayoutProps) {
               >
                 <Github size={16} />
               </a>
+
+              {/* 用户入口 */}
+              {user ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-300 ${
+                      isChristmasPage
+                        ? 'text-gray-300 hover:bg-white/10'
+                        : 'text-apple-gray-500 hover:bg-apple-gray-200/50'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                      isAdmin
+                        ? 'bg-apple-blue text-white'
+                        : isChristmasPage ? 'bg-green-600 text-white' : 'bg-apple-gray-300 text-white'
+                    }`}>
+                      {profile?.username?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                    <ChevronDown size={12} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-apple-xl border border-apple-gray-200/50 py-2 animate-fade-in-up z-50">
+                      <div className="px-3 py-2 border-b border-apple-gray-100">
+                        <p className="text-sm font-medium text-apple-gray-600 truncate">{profile?.username || '用户'}</p>
+                        <p className="text-xs text-apple-gray-400 truncate">{user.email}</p>
+                        {isAdmin && <span className="inline-block mt-1 px-1.5 py-0.5 bg-apple-blue/10 text-apple-blue text-[10px] font-medium rounded">管理员</span>}
+                      </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => { navigate('/lab/editor'); setShowUserMenu(false); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-apple-gray-600 hover:bg-apple-gray-100 transition-colors"
+                        >
+                          <Plus size={14} /> 发布教程
+                        </button>
+                      )}
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut size={14} /> 退出登录
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all duration-300 ${
+                    isChristmasPage
+                      ? 'text-green-400 border border-green-500/30 hover:bg-green-500/10'
+                      : 'text-apple-blue border border-apple-blue/30 hover:bg-apple-blue/5'
+                  }`}
+                >
+                  登录
+                </button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -188,29 +271,54 @@ export default function Layout({ children, currentPage }: LayoutProps) {
                     </Link>
                   );
                 })}
-                <div className="px-4 pt-2 flex items-center gap-4">
-                  <a
-                    href="https://github.com/zlcggb/zlcggb-home"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center transition-colors duration-300 ${
-                      isChristmasPage ? 'text-gray-400 hover:text-green-400' : 'text-apple-gray-500 hover:text-apple-gray-600'
-                    }`}
-                  >
-                    <Github size={16} className="mr-1" />
-                    <span className="text-sm">GitHub</span>
-                  </a>
-                  <a
-                    href="https://b23.tv/xJIdoxY"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center transition-colors duration-300 ${
-                      isChristmasPage ? 'text-gray-400 hover:text-pink-400' : 'text-apple-gray-500 hover:text-pink-500'
-                    }`}
-                  >
-                    <BilibiliIcon size={16} />
-                    <span className="text-sm ml-1">B站</span>
-                  </a>
+                <div className="px-4 pt-2 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <a
+                      href="https://github.com/zlcggb/zlcggb-home"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex items-center transition-colors duration-300 ${
+                        isChristmasPage ? 'text-gray-400 hover:text-green-400' : 'text-apple-gray-500 hover:text-apple-gray-600'
+                      }`}
+                    >
+                      <Github size={16} className="mr-1" />
+                      <span className="text-sm">GitHub</span>
+                    </a>
+                    <a
+                      href="https://b23.tv/xJIdoxY"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`inline-flex items-center transition-colors duration-300 ${
+                        isChristmasPage ? 'text-gray-400 hover:text-pink-400' : 'text-apple-gray-500 hover:text-pink-500'
+                      }`}
+                    >
+                      <BilibiliIcon size={16} />
+                      <span className="text-sm ml-1">B站</span>
+                    </a>
+                  </div>
+                  {/* 移动端用户入口 */}
+                  {user ? (
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm ${
+                        isChristmasPage ? 'text-gray-300' : 'text-apple-gray-500'
+                      }`}>{profile?.username}</span>
+                      <button
+                        onClick={() => { handleSignOut(); setIsMenuOpen(false); }}
+                        className="text-sm text-red-500 hover:text-red-600 transition-colors"
+                      >
+                        退出
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setShowLogin(true); setIsMenuOpen(false); }}
+                      className={`text-sm font-medium ${
+                        isChristmasPage ? 'text-green-400' : 'text-apple-blue'
+                      }`}
+                    >
+                      登录 / 注册
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -265,6 +373,9 @@ export default function Layout({ children, currentPage }: LayoutProps) {
           </div>
         </footer>
       )}
+
+      {/* 登录弹窗 */}
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </div>
   );
 }

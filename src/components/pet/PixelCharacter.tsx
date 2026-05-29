@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type CharacterTemplate = 'cat' | 'robot' | 'slime';
+export type CharacterTemplate = 'cat' | 'robot' | 'slime' | 'bunny' | 'bird' | 'bear';
 export type CharacterAnimState = 'idle' | 'walking' | 'happy' | 'sleeping' | 'dizzy';
 
 interface PixelCharacterProps {
@@ -16,6 +16,9 @@ export function PixelCharacter({ template, state, color, className, style }: Pix
     case 'cat': return <CatSVG state={state} color={color} className={className} style={style} />;
     case 'robot': return <RobotSVG state={state} color={color} className={className} style={style} />;
     case 'slime': return <SlimeSVG state={state} color={color} className={className} style={style} />;
+    case 'bunny': return <BunnySVG state={state} color={color} className={className} style={style} />;
+    case 'bird': return <BirdSVG state={state} color={color} className={className} style={style} />;
+    case 'bear': return <BearSVG state={state} color={color} className={className} style={style} />;
   }
 }
 
@@ -37,9 +40,6 @@ function CatSVG({ state, color, className, style }: InnerProps) {
         <PixelSparkleDef id="cat-sp" />
       </defs>
 
-      {/* 地面阴影 — 在 bounce 组之外 */}
-      <rect className={`cat-shadow ${isHappy ? 'cat-shadow-happy' : ''}`}
-        x="4" y="16" width="12" height="1" fill="#000" opacity="0.4" />
 
       {/* 像素星光 — 在 bounce 组之外 */}
       {isHappy && (
@@ -119,7 +119,6 @@ const CAT_CSS = `
   .cat-blink { transform-origin: 10px 0px; animation: cat-bl 4s infinite linear; }
   .cat-tail { transform-origin: 16px 5px; animation: cat-tw 2.5s infinite ease-in-out; }
   .cat-ears { animation: cat-ear 6s infinite ease-in-out; }
-  .cat-shadow { transform-origin: 10px 16.5px; }
 
   /* === IDLE === */
   .cat-idle { animation: cat-idle 8s infinite ease-in-out; }
@@ -134,7 +133,6 @@ const CAT_CSS = `
   .cat-happy .cat-tail { animation: cat-tw-fast 0.15s infinite alternate ease-in-out; }
   .cat-happy .cat-ears { animation: cat-ear-perk 0.15s infinite alternate ease-in-out; }
   .cat-happy .cat-blink { animation: cat-bl-happy 2s infinite linear; }
-  .cat-shadow-happy { animation: cat-shd 1s infinite ease-in-out !important; }
 
   /* === SLEEPING === */
   .cat-sleeping { animation: cat-sleep 4s infinite ease-in-out; }
@@ -203,10 +201,6 @@ function RobotSVG({ state, color, className, style }: InnerProps) {
         <style>{ROBOT_CSS}{SPARKLE_GLOBAL_CSS}</style>
         <PixelSparkleDef id="bot-sp" />
       </defs>
-
-      {/* 阴影 */}
-      <rect className={`bot-shadow ${isHappy ? 'bot-shadow-happy' : ''}`}
-        x="4" y="17" width="12" height="1" fill="#000" opacity="0.4" />
 
       {/* 星光 */}
       {isHappy && (
@@ -291,7 +285,6 @@ const ROBOT_CSS = `
   .bot-breathe { transform-origin: 10px 12px; animation: bot-br 4s infinite ease-in-out; }
   .bot-blink { transform-origin: 10px 0px; animation: bot-bl 5s infinite step-end; }
   .bot-antenna { transform-origin: 10px -6px; animation: bot-ant 3s infinite ease-in-out; }
-  .bot-shadow { transform-origin: 10px 17.5px; }
   .bot-led1 { animation: bot-flash 1.5s infinite step-end; }
   .bot-led2 { animation: bot-flash 1.5s 0.75s infinite step-end; }
   .bot-mouth { animation: bot-talk 2s infinite step-end; }
@@ -313,7 +306,6 @@ const ROBOT_CSS = `
   .bot-happy .bot-arm-r { transform-origin: 18px 7px; animation: bot-wave-r 0.15s infinite alternate ease-in-out; }
   .bot-happy .bot-blink { animation: bot-bl-happy 0.3s infinite step-end; }
   .bot-happy .bot-mouth { animation: bot-talk-fast 0.4s infinite step-end; }
-  .bot-shadow-happy { animation: bot-shd 1s infinite ease-in-out !important; }
 
   /* === SLEEPING === */
   .bot-sleeping { animation: bot-sleep 5s infinite ease-in-out; }
@@ -386,10 +378,6 @@ function SlimeSVG({ state, color, className, style }: InnerProps) {
         <PixelSparkleDef id="slm-sp" />
       </defs>
 
-      {/* 阴影 */}
-      <rect className={`slm-shadow ${isHappy ? 'slm-shadow-happy' : ''}`}
-        x="3" y="14" width="14" height="1" fill="#000" opacity="0.35" />
-
       {/* 星光 */}
       {isHappy && (
         <g className="slm-sparkles">
@@ -451,7 +439,6 @@ const SLIME_CSS = `
   .slm-breathe { transform-origin: 10px 13px; animation: slm-br 2.5s infinite ease-in-out; }
   .slm-blink { transform-origin: 10px 6px; animation: slm-bl 3.5s infinite linear; }
   .slm-drip { animation: slm-dr 4s infinite ease-in-out; }
-  .slm-shadow { transform-origin: 10px 14.5px; }
 
   /* === IDLE === */
   .slm-idle { animation: slm-idle 5s infinite ease-in-out; }
@@ -465,7 +452,6 @@ const SLIME_CSS = `
   .slm-happy .slm-breathe { animation: slm-jig 0.5s infinite ease-in-out; }
   .slm-happy .slm-blink { animation: slm-bl-happy 2s infinite linear; }
   .slm-happy .slm-drip { animation: slm-dr-fast 0.6s infinite ease-in-out; }
-  .slm-shadow-happy { animation: slm-shd 1.2s infinite ease-in-out !important; }
 
   /* === SLEEPING === */
   .slm-sleeping { animation: slm-sleep 4s infinite ease-in-out; }
@@ -516,8 +502,401 @@ const SLIME_CSS = `
 `;
 
 // ============================================================
-//  共享组件
+//  BUNNY — 像素兔子
 // ============================================================
+function BunnySVG({ state, color, className, style }: InnerProps) {
+  const dark = darken(color, 25);
+  const light = lighten(color, 40);
+  const isHappy = state === 'happy';
+
+  return (
+    <svg viewBox="-12 -24 45 50" width="500" height="500" xmlns="http://www.w3.org/2000/svg"
+      className={className} style={style} shapeRendering="crispEdges" overflow="visible">
+      <defs>
+        <style>{BUNNY_CSS}{SPARKLE_GLOBAL_CSS}</style>
+        <PixelSparkleDef id="bny-sp" />
+      </defs>
+
+
+      {isHappy && (
+        <g className="bny-sparkles">
+          <use href="#bny-sp" x="-6" y="-6" fill="#FFD700" style={{ ['--sp-delay' as string]: '0s' }} />
+          <use href="#bny-sp" x="24" y="-10" fill="#FFA000" style={{ ['--sp-delay' as string]: '0.3s' }} />
+          <use href="#bny-sp" x="26" y="10" fill="#FFF59D" style={{ ['--sp-delay' as string]: '0.6s' }} />
+          <use href="#bny-sp" x="-8" y="12" fill="#FFC107" style={{ ['--sp-delay' as string]: '0.9s' }} />
+        </g>
+      )}
+
+      <g className={`bny-body bny-${state}`}>
+        <g className="bny-breathe">
+          {/* 长耳朵 */}
+          <g className="bny-ears">
+            <rect x="5" y="-12" width="3" height="10" fill={color} />
+            <rect x="6" y="-10" width="1" height="6" fill={light} />
+            <rect x="12" y="-12" width="3" height="10" fill={color} />
+            <rect x="13" y="-10" width="1" height="6" fill={light} />
+          </g>
+
+          {/* 头部 */}
+          <rect x="3" y="-2" width="14" height="8" fill={color} />
+          {/* 身体 */}
+          <rect x="4" y="6" width="12" height="5" fill={color} />
+          {/* 腹部 */}
+          <rect x="6" y="7" width="8" height="3" fill={light} />
+
+          {/* 前腿 */}
+          <g className="bny-legs-l">
+            <rect x="5" y="11" width="3" height="3" fill={color} />
+          </g>
+          <g className="bny-legs-r">
+            <rect x="12" y="11" width="3" height="3" fill={color} />
+          </g>
+
+          {/* 圆尾巴 */}
+          <rect x="16" y="8" width="2" height="2" fill={light} />
+
+          {/* 眼睛 */}
+          <g className="bny-eyes">
+            <g className="bny-blink">
+              <rect x="5" y="1" width="3" height="3" fill="#fff" />
+              <rect x="6" y="1" width="1" height="3" fill="#111" />
+              <rect x="12" y="1" width="3" height="3" fill="#fff" />
+              <rect x="13" y="1" width="1" height="3" fill="#111" />
+            </g>
+          </g>
+
+          {/* 鼻子 */}
+          <rect x="9" y="4" width="2" height="1" fill="#F9A8D4" />
+          {/* 嘴 */}
+          <rect x="8" y="5" width="1" height="1" fill={dark} opacity="0.3" />
+          <rect x="11" y="5" width="1" height="1" fill={dark} opacity="0.3" />
+        </g>
+      </g>
+
+      {state === 'sleeping' && <ZzzEffect x={16} y={-8} prefix="bny" />}
+      {state === 'dizzy' && <StarsEffect cx={10} cy={-4} prefix="bny" />}
+    </svg>
+  );
+}
+
+const BUNNY_CSS = `
+  .bny-body { transform-origin: 10px 14px; }
+  .bny-breathe { transform-origin: 10px 10px; animation: bny-br 2.8s infinite ease-in-out; }
+  .bny-blink { transform-origin: 10px 2px; animation: bny-bl 3s infinite linear; }
+  .bny-ears { transform-origin: 10px -2px; animation: bny-ear 4s infinite ease-in-out; }
+
+  .bny-idle { animation: bny-idle 6s infinite ease-in-out; }
+  .bny-walking { animation: bny-walk-bob 0.35s infinite ease-in-out; }
+  .bny-walking .bny-legs-l { transform-origin: 6px 11px; animation: bny-wl 0.35s infinite ease-in-out; }
+  .bny-walking .bny-legs-r { transform-origin: 13px 11px; animation: bny-wr 0.35s infinite ease-in-out; }
+  .bny-happy { animation: bny-bounce 0.8s infinite ease-in-out; }
+  .bny-happy .bny-ears { animation: bny-ear-flap 0.2s infinite alternate ease-in-out; }
+  .bny-sleeping { animation: bny-sleep 4s infinite ease-in-out; }
+  .bny-sleeping .bny-blink { transform: scaleY(0.1); animation: none; }
+  .bny-dizzy { animation: bny-dizzy 1.5s infinite ease-in-out; }
+
+  @keyframes bny-br { 0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.97) translateY(0.5px)} }
+  @keyframes bny-bl { 0%,40%,46%,88%,94%,100%{transform:scaleY(1)}43%,91%{transform:scaleY(0.1)} }
+  @keyframes bny-ear { 0%,80%,100%{transform:translateY(0)}85%{transform:translateY(-1px)}90%{transform:translateY(0)}95%{transform:translateY(-0.5px)} }
+  @keyframes bny-ear-flap { 0%{transform:translateY(0) rotate(-3deg)}100%{transform:translateY(-2px) rotate(3deg)} }
+  @keyframes bny-idle { 0%,30%,100%{transform:translate(0)}15%{transform:translate(0.5px,0)}50%{transform:translate(-0.5px,0)} }
+  @keyframes bny-walk-bob { 0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)} }
+  @keyframes bny-wl { 0%,100%{transform:rotate(0)}25%{transform:rotate(20deg)}75%{transform:rotate(-20deg)} }
+  @keyframes bny-wr { 0%,100%{transform:rotate(0)}25%{transform:rotate(-20deg)}75%{transform:rotate(20deg)} }
+  @keyframes bny-bounce {
+    0%, 15%, 100% { transform: translateY(0) scaleY(1); }
+    20%  { transform: translateY(0) scaleY(0.80); }
+    35%  { transform: translateY(-14px) scaleY(1.08); }
+    50%  { transform: translateY(-16px) scaleY(1); }
+    65%  { transform: translateY(-14px) scaleY(1.08); }
+    80%  { transform: translateY(0) scaleY(0.80); }
+    85%  { transform: translateY(0) scaleY(1); }
+  }
+  @keyframes bny-shd {
+    0%, 15%, 100% { transform: scaleX(1); opacity: 0.5; }
+    20%  { transform: scaleX(1.1); opacity: 0.6; }
+    35%  { transform: scaleX(0.5); opacity: 0.15; }
+    50%  { transform: scaleX(0.4); opacity: 0.1; }
+    65%  { transform: scaleX(0.5); opacity: 0.15; }
+    80%  { transform: scaleX(1.1); opacity: 0.6; }
+  }
+  @keyframes bny-sleep { 0%,100%{transform:scaleY(1) scaleX(1)}50%{transform:scaleY(0.95) scaleX(1.02)} }
+  @keyframes bny-dizzy { 0%,100%{transform:rotate(0) translate(0)}25%{transform:rotate(3deg) translate(1px,0)}75%{transform:rotate(-3deg) translate(-1px,0)} }
+  .bny-sparkles use { --sp-delay: 0s; }
+  .bny-sparkles .sp-center { opacity:0; animation: sp-fc 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+  .bny-sparkles .sp-outer  { opacity:0; animation: sp-fo 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+`;
+
+// ============================================================
+//  BIRD — 像素小鸟
+// ============================================================
+function BirdSVG({ state, color, className, style }: InnerProps) {
+  const dark = darken(color, 30);
+  const light = lighten(color, 40);
+  const isHappy = state === 'happy';
+
+  return (
+    <svg viewBox="-12 -18 45 45" width="500" height="500" xmlns="http://www.w3.org/2000/svg"
+      className={className} style={style} shapeRendering="crispEdges" overflow="visible">
+      <defs>
+        <style>{BIRD_CSS}{SPARKLE_GLOBAL_CSS}</style>
+        <PixelSparkleDef id="brd-sp" />
+      </defs>
+
+
+      {isHappy && (
+        <g className="brd-sparkles">
+          <use href="#brd-sp" x="-6" y="-4" fill="#87CEEB" style={{ ['--sp-delay' as string]: '0s' }} />
+          <use href="#brd-sp" x="24" y="-6" fill="#ADD8E6" style={{ ['--sp-delay' as string]: '0.3s' }} />
+          <use href="#brd-sp" x="26" y="10" fill="#B0E0E6" style={{ ['--sp-delay' as string]: '0.6s' }} />
+          <use href="#brd-sp" x="-8" y="12" fill="#87CEEB" style={{ ['--sp-delay' as string]: '0.9s' }} />
+        </g>
+      )}
+
+      <g className={`brd-body brd-${state}`}>
+        <g className="brd-breathe">
+          {/* 头 */}
+          <rect x="4" y="-2" width="12" height="7" fill={color} />
+          {/* 冠毛 */}
+          <rect x="8" y="-5" width="2" height="3" fill={dark} />
+          <rect x="10" y="-4" width="2" height="2" fill={dark} />
+
+          {/* 身体 */}
+          <rect x="3" y="5" width="14" height="6" fill={color} />
+          {/* 腹部 */}
+          <rect x="5" y="6" width="10" height="4" fill={light} />
+
+          {/* 翅膀 */}
+          <g className="brd-wing-l">
+            <rect x="0" y="5" width="3" height="5" fill={dark} />
+          </g>
+          <g className="brd-wing-r">
+            <rect x="17" y="5" width="3" height="5" fill={dark} />
+          </g>
+
+          {/* 腿 */}
+          <g className="brd-legs-l">
+            <rect x="5" y="11" width="1" height="3" fill="#F4A460" />
+            <rect x="4" y="14" width="3" height="1" fill="#F4A460" />
+          </g>
+          <g className="brd-legs-r">
+            <rect x="14" y="11" width="1" height="3" fill="#F4A460" />
+            <rect x="13" y="14" width="3" height="1" fill="#F4A460" />
+          </g>
+
+          {/* 眼睛 */}
+          <g className="brd-eyes">
+            <g className="brd-blink">
+              <rect x="6" y="0" width="2" height="2" fill="#fff" />
+              <rect x="6" y="0" width="1" height="2" fill="#111" />
+              <rect x="12" y="0" width="2" height="2" fill="#fff" />
+              <rect x="13" y="0" width="1" height="2" fill="#111" />
+            </g>
+          </g>
+
+          {/* 尖嘴 */}
+          <rect x="8" y="3" width="4" height="2" fill="#F4A460" />
+          <rect x="9" y="5" width="2" height="1" fill="#DEB887" />
+        </g>
+      </g>
+
+      {state === 'sleeping' && <ZzzEffect x={16} y={-4} prefix="brd" />}
+      {state === 'dizzy' && <StarsEffect cx={10} cy={-4} prefix="brd" />}
+    </svg>
+  );
+}
+
+const BIRD_CSS = `
+  .brd-body { transform-origin: 10px 14px; }
+  .brd-breathe { transform-origin: 10px 8px; animation: brd-br 2.5s infinite ease-in-out; }
+  .brd-blink { transform-origin: 10px 1px; animation: brd-bl 3s infinite linear; }
+  .brd-wing-l { transform-origin: 3px 7px; animation: brd-flap-l 2s infinite ease-in-out; }
+  .brd-wing-r { transform-origin: 17px 7px; animation: brd-flap-r 2s infinite ease-in-out; }
+
+  .brd-idle { animation: brd-idle 5s infinite ease-in-out; }
+  .brd-walking { animation: brd-walk 0.4s infinite ease-in-out; }
+  .brd-walking .brd-legs-l { transform-origin: 5px 11px; animation: brd-wl 0.4s infinite ease-in-out; }
+  .brd-walking .brd-legs-r { transform-origin: 14px 11px; animation: brd-wr 0.4s infinite ease-in-out; }
+  .brd-happy { animation: brd-bounce 1s infinite ease-in-out; }
+  .brd-happy .brd-wing-l { animation: brd-wave-l 0.15s infinite alternate ease-in-out; }
+  .brd-happy .brd-wing-r { animation: brd-wave-r 0.15s infinite alternate ease-in-out; }
+  .brd-sleeping { animation: brd-sleep 4s infinite ease-in-out; }
+  .brd-sleeping .brd-blink { transform: scaleY(0.1); animation: none; }
+  .brd-sleeping .brd-wing-l { animation: none; }
+  .brd-sleeping .brd-wing-r { animation: none; }
+  .brd-dizzy { animation: brd-dizzy 1.5s infinite ease-in-out; }
+
+  @keyframes brd-br { 0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.97)} }
+  @keyframes brd-bl { 0%,42%,48%,90%,96%,100%{transform:scaleY(1)}45%,93%{transform:scaleY(0.1)} }
+  @keyframes brd-flap-l { 0%,100%{transform:rotate(0)}50%{transform:rotate(10deg)} }
+  @keyframes brd-flap-r { 0%,100%{transform:rotate(0)}50%{transform:rotate(-10deg)} }
+  @keyframes brd-wave-l { 0%{transform:rotate(40deg)}100%{transform:rotate(80deg)} }
+  @keyframes brd-wave-r { 0%{transform:rotate(-40deg)}100%{transform:rotate(-80deg)} }
+  @keyframes brd-idle { 0%,30%,100%{transform:translate(0)}15%{transform:translate(0.5px,0)}50%{transform:translate(-0.5px,0)} }
+  @keyframes brd-walk { 0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)} }
+  @keyframes brd-wl { 0%,100%{transform:rotate(0)}25%{transform:rotate(25deg)}75%{transform:rotate(-25deg)} }
+  @keyframes brd-wr { 0%,100%{transform:rotate(0)}25%{transform:rotate(-25deg)}75%{transform:rotate(25deg)} }
+  @keyframes brd-bounce {
+    0%, 15%, 100% { transform: translateY(0) scaleY(1); }
+    20%  { transform: translateY(0) scaleY(0.85); }
+    40%  { transform: translateY(-10px) scaleY(1.05); }
+    50%  { transform: translateY(-12px) scaleY(1); }
+    60%  { transform: translateY(-10px) scaleY(1.05); }
+    80%  { transform: translateY(0) scaleY(0.85); }
+    85%  { transform: translateY(0) scaleY(1); }
+  }
+  @keyframes brd-shd {
+    0%, 15%, 100% { transform: scaleX(1); opacity: 0.5; }
+    20%  { transform: scaleX(1.1); opacity: 0.6; }
+    40%  { transform: scaleX(0.6); opacity: 0.2; }
+    50%  { transform: scaleX(0.5); opacity: 0.15; }
+    60%  { transform: scaleX(0.6); opacity: 0.2; }
+    80%  { transform: scaleX(1.1); opacity: 0.6; }
+  }
+  @keyframes brd-sleep { 0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.95) scaleX(1.02)} }
+  @keyframes brd-dizzy { 0%,100%{transform:rotate(0)}25%{transform:rotate(4deg) translate(1px,0)}75%{transform:rotate(-4deg) translate(-1px,0)} }
+  .brd-sparkles use { --sp-delay: 0s; }
+  .brd-sparkles .sp-center { opacity:0; animation: sp-fc 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+  .brd-sparkles .sp-outer  { opacity:0; animation: sp-fo 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+`;
+
+// ============================================================
+//  BEAR — 像素小熊
+// ============================================================
+function BearSVG({ state, color, className, style }: InnerProps) {
+  const dark = darken(color, 25);
+  const light = lighten(color, 35);
+  const isHappy = state === 'happy';
+
+  return (
+    <svg viewBox="-14 -18 48 48" width="500" height="500" xmlns="http://www.w3.org/2000/svg"
+      className={className} style={style} shapeRendering="crispEdges" overflow="visible">
+      <defs>
+        <style>{BEAR_CSS}{SPARKLE_GLOBAL_CSS}</style>
+        <PixelSparkleDef id="ber-sp" />
+      </defs>
+
+
+      {isHappy && (
+        <g className="ber-sparkles">
+          <use href="#ber-sp" x="-8" y="-4" fill="#FFD700" style={{ ['--sp-delay' as string]: '0s' }} />
+          <use href="#ber-sp" x="26" y="-6" fill="#FFA000" style={{ ['--sp-delay' as string]: '0.25s' }} />
+          <use href="#ber-sp" x="28" y="12" fill="#FFF59D" style={{ ['--sp-delay' as string]: '0.5s' }} />
+          <use href="#ber-sp" x="-10" y="14" fill="#FFC107" style={{ ['--sp-delay' as string]: '0.75s' }} />
+        </g>
+      )}
+
+      <g className={`ber-body ber-${state}`}>
+        <g className="ber-breathe">
+          {/* 圆耳朵 */}
+          <rect x="2" y="-4" width="4" height="4" fill={color} />
+          <rect x="3" y="-3" width="2" height="2" fill={dark} />
+          <rect x="14" y="-4" width="4" height="4" fill={color} />
+          <rect x="15" y="-3" width="2" height="2" fill={dark} />
+
+          {/* 头部 */}
+          <rect x="2" y="0" width="16" height="8" fill={color} />
+          {/* 脸部亮区 */}
+          <rect x="5" y="4" width="10" height="3" fill={light} />
+
+          {/* 身体 */}
+          <rect x="3" y="8" width="14" height="7" fill={color} />
+          {/* 腹部 */}
+          <rect x="6" y="9" width="8" height="5" fill={light} />
+
+          {/* 手臂 */}
+          <g className="ber-arm-l">
+            <rect x="0" y="9" width="3" height="4" fill={color} />
+          </g>
+          <g className="ber-arm-r">
+            <rect x="17" y="9" width="3" height="4" fill={color} />
+          </g>
+
+          {/* 腿 */}
+          <g className="ber-leg-l">
+            <rect x="4" y="15" width="4" height="3" fill={dark} />
+          </g>
+          <g className="ber-leg-r">
+            <rect x="12" y="15" width="4" height="3" fill={dark} />
+          </g>
+
+          {/* 眼睛 */}
+          <g className="ber-eyes">
+            <g className="ber-blink">
+              <rect x="5" y="2" width="3" height="2" fill="#111" />
+              <rect x="5" y="2" width="1" height="1" fill="#fff" />
+              <rect x="12" y="2" width="3" height="2" fill="#111" />
+              <rect x="12" y="2" width="1" height="1" fill="#fff" />
+            </g>
+          </g>
+
+          {/* 鼻子 */}
+          <rect x="8" y="5" width="4" height="2" fill="#333" />
+          {/* 嘴 */}
+          <rect x="9" y="7" width="2" height="1" fill={dark} opacity="0.5" />
+        </g>
+      </g>
+
+      {state === 'sleeping' && <ZzzEffect x={18} y={-4} prefix="ber" />}
+      {state === 'dizzy' && <StarsEffect cx={10} cy={-4} prefix="ber" />}
+    </svg>
+  );
+}
+
+const BEAR_CSS = `
+  .ber-body { transform-origin: 10px 18px; }
+  .ber-breathe { transform-origin: 10px 12px; animation: ber-br 3.5s infinite ease-in-out; }
+  .ber-blink { transform-origin: 10px 3px; animation: ber-bl 4s infinite linear; }
+
+  .ber-idle { animation: ber-idle 7s infinite ease-in-out; }
+  .ber-walking { animation: ber-walk-bob 0.5s infinite ease-in-out; }
+  .ber-walking .ber-leg-l { transform-origin: 6px 15px; animation: ber-wl 0.5s infinite ease-in-out; }
+  .ber-walking .ber-leg-r { transform-origin: 14px 15px; animation: ber-wr 0.5s infinite ease-in-out; }
+  .ber-walking .ber-arm-l { transform-origin: 2px 9px; animation: ber-al 0.5s infinite ease-in-out; }
+  .ber-walking .ber-arm-r { transform-origin: 18px 9px; animation: ber-ar 0.5s infinite ease-in-out; }
+  .ber-happy { animation: ber-bounce 1.2s infinite ease-in-out; }
+  .ber-happy .ber-arm-l { transform-origin: 2px 9px; animation: ber-wave-l 0.2s infinite alternate ease-in-out; }
+  .ber-happy .ber-arm-r { transform-origin: 18px 9px; animation: ber-wave-r 0.2s infinite alternate ease-in-out; }
+  .ber-sleeping { animation: ber-sleep 5s infinite ease-in-out; }
+  .ber-sleeping .ber-blink { transform: scaleY(0.1); animation: none; }
+  .ber-dizzy { animation: ber-dizzy 1.5s infinite ease-in-out; }
+
+  @keyframes ber-br { 0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.97) translateY(0.5px)} }
+  @keyframes ber-bl { 0%,44%,50%,92%,98%,100%{transform:scaleY(1)}47%,95%{transform:scaleY(0.1)} }
+  @keyframes ber-idle { 0%,40%,100%{transform:translate(0)}20%{transform:translate(0.5px,-0.5px)} }
+  @keyframes ber-walk-bob { 0%,100%{transform:translateY(0)}50%{transform:translateY(-1px)} }
+  @keyframes ber-wl { 0%,100%{transform:rotate(0)}50%{transform:rotate(15deg)} }
+  @keyframes ber-wr { 0%,100%{transform:rotate(0)}50%{transform:rotate(-15deg)} }
+  @keyframes ber-al { 0%,100%{transform:rotate(0)}50%{transform:rotate(-12deg)} }
+  @keyframes ber-ar { 0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)} }
+  @keyframes ber-wave-l { 0%{transform:rotate(35deg)}100%{transform:rotate(70deg)} }
+  @keyframes ber-wave-r { 0%{transform:rotate(-35deg)}100%{transform:rotate(-70deg)} }
+  @keyframes ber-bounce {
+    0%, 10%, 100% { transform: translateY(0) scaleY(1); }
+    15%  { transform: translateY(0) scaleY(0.88); }
+    35%  { transform: translateY(-8px) scaleY(1.05); }
+    45%  { transform: translateY(-10px) scaleY(1); }
+    55%  { transform: translateY(-8px) scaleY(1.05); }
+    75%  { transform: translateY(0) scaleY(0.88); }
+    80%  { transform: translateY(0) scaleY(1); }
+  }
+  @keyframes ber-shd {
+    0%, 10%, 100% { transform: scaleX(1); opacity: 0.5; }
+    15%  { transform: scaleX(1.1); opacity: 0.6; }
+    35%  { transform: scaleX(0.6); opacity: 0.2; }
+    45%  { transform: scaleX(0.5); opacity: 0.15; }
+    55%  { transform: scaleX(0.6); opacity: 0.2; }
+    75%  { transform: scaleX(1.1); opacity: 0.6; }
+  }
+  @keyframes ber-sleep { 0%,100%{transform:scaleY(1)}50%{transform:scaleY(0.96)} }
+  @keyframes ber-dizzy { 0%,100%{transform:rotate(0)}25%{transform:rotate(3deg) translate(1px,0)}75%{transform:rotate(-3deg) translate(-1px,0)} }
+  .ber-sparkles use { --sp-delay: 0s; }
+  .ber-sparkles .sp-center { opacity:0; animation: sp-fc 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+  .ber-sparkles .sp-outer  { opacity:0; animation: sp-fo 1.5s infinite step-end; animation-delay: var(--sp-delay); }
+`;
+
+// ============================================================
+//  共享组件
 
 /** 像素十字星光 <defs> — 与 Clawd 原版 sparkle 相同的 2 帧像素闪烁 */
 function PixelSparkleDef({ id }: { id: string }) {
