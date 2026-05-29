@@ -1,0 +1,6 @@
+# Antigravity agent indexing exclusions
+node_modules/
+dist/
+.codegraph/
+.git/objects/
+.git/subtree-cache/

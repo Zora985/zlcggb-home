@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import LinkExtension from '@tiptap/extension-link';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { Table as TableExtension, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import { common, createLowlight } from 'lowlight';
 import { useAuth } from '../../lib/useAuth';
 import { fetchTutorialBySlug, incrementViewCount } from '../../lib/tutorialService';
@@ -190,10 +191,14 @@ export default function TutorialDetail() {
   const editor = useEditor({
     editable: false,
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
+      StarterKit.configure({ codeBlock: false, link: false }),
       Image,
       LinkExtension.configure({ openOnClick: true }),
       CodeBlockLowlight.configure({ lowlight }),
+      TableExtension.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       CustomUnderline,
       CustomHighlight,
       CustomAlign,

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 -25 45 45" width="540" height="540" overflow="visible">
+  <defs>
+    <style>
+      /* 身体弹性呼吸 */
+      .snake { transform-origin: 7.5px 15px; animation: bounce 3s infinite ease-in-out; }
+      /* 俏皮摇尾巴 */
+      .tail { transform-origin: -3px 12px; animation: wag 1.2s infinite ease-in-out; }
+      /* 蛇信子吞吐闪动 */
+      .tongue { transform-origin: 10px 0px; animation: flick 2.5s infinite; opacity: 0; }
+      /* 眨眼 */
+      .eyes { transform-origin: 7.5px 1px; animation: blink 4s infinite; }
+      
+      @keyframes bounce { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(0.93) translateY(1.5px)} }
+      @keyframes wag { 0%,100%{transform:rotate(-15deg)} 50%{transform:rotate(25deg)} }
+      @keyframes flick { 0%,85%,100%{opacity:0; transform:translateX(0)} 88%,92%{opacity:1; transform:translateX(2.5px)} }
+      @keyframes blink { 0%,94%,100%{transform:scaleY(1)} 96%{transform:scaleY(0.1)} }
+    </style>
+  </defs>
+
+  <!-- 地面阴影 -->
+  <ellipse cx="7.5" cy="16" rx="10" ry="1.5" fill="#000" opacity="0.15" />
+
+  <g class="snake">
+    <!-- 摇摆的尾巴 -->
+    <g class="tail">
+      <path d="M -3 12 Q -12 10 -9 2" fill="none" stroke="#FFCA28" stroke-width="4.5" stroke-linecap="round" />
+    </g>
+
+    <!-- 盘绕的身体 (通过粗线条和圆角自然形成完美平滑的蛇身) -->
+    <path d="M -3 12 C 3 16, 12 17, 18 12 C 22 8, 17 3, 12 5 C 6 6, 4 10, 8 13" fill="none" stroke="#FFD54F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- 昂起的头部 -->
+    <path d="M 8 13 Q 9 5 7.5 1" fill="none" stroke="#FFD54F" stroke-width="8.5" stroke-linecap="round" />
+
+    <!-- 蛇信子 (红红的分叉) -->
+    <g class="tongue">
+      <path d="M 11.5 2 L 15.5 2 M 15.5 2 L 17 0.5 M 15.5 2 L 17 3.5" fill="none" stroke="#FF5252" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+
+    <!-- 呆萌的五官 -->
+    <g class="eyes" fill="#3D291C">
+      <!-- 眼睛 (正圆) -->
+      <circle cx="5" cy="0.5" r="1.3" />
+      <circle cx="10" cy="0.5" r="1.3" />
+      <!-- 腮红 (半透明粉色) -->
+      <circle cx="3" cy="2.5" r="1.5" fill="#FF8A80" opacity="0.6" />
+      <circle cx="12" cy="2.5" r="1.5" fill="#FF8A80" opacity="0.6" />
+    </g>
+  </g>
+</svg>
