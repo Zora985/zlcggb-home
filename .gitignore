@@ -22,3 +22,7 @@ dist-ssr
 *.sw?
 .env
 .codegraph/
+
+# 大型二进制文件
+*.pptx
+*.ppt
