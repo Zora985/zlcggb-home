@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit3, Clock, Eye, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Edit3, Clock, Eye, Calendar, Tag } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Mark, Extension, mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -176,6 +176,16 @@ export default function TutorialDetail() {
   const [activeId, setActiveId] = useState('');
   const [prevTutorial, setPrevTutorial] = useState<Pick<Tutorial, 'title' | 'slug'> | null>(null);
   const [nextTutorial, setNextTutorial] = useState<Pick<Tutorial, 'title' | 'slug'> | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // 监听滚动以控制“回到顶部”按钮的显示
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const editor = useEditor({
     editable: false,
@@ -454,7 +464,7 @@ export default function TutorialDetail() {
     <div className="min-h-screen bg-apple-gray-100 py-24 relative">
       {/* 左侧大纲目录栏 (飞书文档风格) */}
       {headings.length > 0 && (
-        <div className="fixed left-[calc(50%-550px)] top-40 w-52 hidden xl:block select-none z-10 max-h-[calc(100vh-240px)] overflow-y-auto pr-2 custom-scrollbar">
+        <div className="fixed left-[calc(50%-620px)] top-40 w-52 hidden xl:block select-none z-10 max-h-[calc(100vh-240px)] overflow-y-auto pr-2 custom-scrollbar">
           <p className="text-[10px] font-bold text-apple-gray-400 uppercase tracking-wider mb-4 pl-3">目录大纲</p>
           <div className="relative border-l border-apple-gray-200/60 ml-3 flex flex-col gap-1 text-xs">
             {headings.map((heading) => (
@@ -626,6 +636,31 @@ export default function TutorialDetail() {
             <ArrowLeft size={16} /> 返回教程列表
           </Link>
         </div>
+      </div>
+
+      {/* 左下角悬浮快捷按钮组 (苹果风毛玻璃) */}
+      <div className="fixed left-6 bottom-8 flex flex-col gap-3 z-30">
+        {/* 返回列表按钮 */}
+        <button
+          onClick={() => navigate('/lab')}
+          className="group w-10 h-10 rounded-full glass border border-apple-gray-200/50 flex items-center justify-center text-apple-gray-500 hover:text-apple-blue hover:scale-110 hover:shadow-md active:scale-95 transition-all duration-300 shadow-sm cursor-pointer"
+          title="返回列表"
+        >
+          <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform duration-300" />
+        </button>
+
+        {/* 快速回到顶部 */}
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className={`group w-10 h-10 rounded-full glass border border-apple-gray-200/50 flex items-center justify-center text-apple-gray-500 hover:text-apple-blue hover:scale-110 hover:shadow-md active:scale-95 transition-all duration-300 shadow-sm cursor-pointer ${
+            showScrollTop
+              ? 'opacity-100 scale-100 pointer-events-auto'
+              : 'opacity-0 scale-90 pointer-events-none'
+          }`}
+          title="回到顶部"
+        >
+          <ArrowUp size={18} className="group-hover:-translate-y-0.5 transition-transform duration-300" />
+        </button>
       </div>
     </div>
   );
