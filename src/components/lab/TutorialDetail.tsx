@@ -209,17 +209,6 @@ export default function TutorialDetail() {
           sessionStorage.setItem(viewKey, '1');
           incrementViewCount(data.id).catch(() => {});
         }
-
-        // 登录用户记录阅读历史
-        if (user) {
-          supabase
-            .from('zlcggb_reading_history')
-            .upsert(
-              { user_id: user.id, tutorial_id: data.id, read_at: new Date().toISOString() },
-              { onConflict: 'user_id,tutorial_id' }
-            )
-            .then(() => {});
-        }
       })
       .catch(() => {
         setError('教程不存在或已被删除');
@@ -247,7 +236,19 @@ export default function TutorialDetail() {
           }
         }
       });
-  }, [slug, user]);
+  }, [slug]);
+
+  // 登录用户记录阅读历史（解耦以避免 loading 闪烁）
+  useEffect(() => {
+    if (user && tutorial?.id) {
+      supabase
+        .from('zlcggb_reading_history')
+        .upsert(
+          { user_id: user.id, tutorial_id: tutorial.id, read_at: new Date().toISOString() },
+          { onConflict: 'user_id,tutorial_id' }
+        );
+    }
+  }, [user, tutorial?.id]);
 
   // 教程数据和只读 editor 都准备就绪时，安全同步内容以渲染排版，规避骨架屏组件卸载导致的竞态空白 Bug
   useEffect(() => {
