@@ -27,7 +27,8 @@ import {
 } from '../../lib/tutorialService';
 import type { Tutorial } from '../../lib/tutorialService';
 import LoginModal from './LoginModal';
-import { looksLikeMarkdown, markdownToHtml } from '../../utils/markdownPaste';
+import { Markdown } from '@tiptap/markdown';
+import { looksLikeMarkdown } from '../../utils/markdownPaste';
 
 const lowlight = createLowlight(common);
 
@@ -264,6 +265,7 @@ export default function TutorialEditor() {
       CustomUnderline,
       CustomHighlight,
       CustomAlign,
+      Markdown,
     ],
     editorProps: {
       attributes: {
@@ -285,19 +287,47 @@ export default function TutorialEditor() {
         }
 
         // 2. Markdown 文本粘贴检测
-        // 仅在剪贴板没有 HTML 格式时触发（避免从网页复制的富文本被重复处理）
-        const htmlData = event.clipboardData?.getData('text/html');
-        const plainText = event.clipboardData?.getData('text/plain');
+        // 只要纯文本包含 Markdown 语法特征（≥2 种），就用 @tiptap/markdown 原生解析
+        const plainText = event.clipboardData?.getData('text/plain') || '';
 
-        if (plainText && !htmlData && looksLikeMarkdown(plainText)) {
+        if (plainText && looksLikeMarkdown(plainText)) {
           event.preventDefault();
-          const html = markdownToHtml(plainText);
-          // 通过 Tiptap insertContent 安全插入，由各 extension 的 parseHTML 规则解析
           const ed = editorInstanceRef.current;
           if (ed) {
-            ed.commands.insertContent(html, {
-              parseOptions: { preserveWhitespace: false },
-            });
+            // 预处理：转换编辑器不支持的 Markdown 语法
+            const processed = plainText
+              // 引用块内的 checkbox 列表 → 引用块内的 emoji 段落
+              // > - [ ] text  →  > ☐ text
+              // > - [x] text  →  > ✅ text
+              .replace(/^(>\s*)[-*+]\s+\[[ /]\]\s+/gm, '$1☐ ')
+              .replace(/^(>\s*)[-*+]\s+\[[xX]\]\s+/gm, '$1✅ ')
+              // 引用块内的普通列表 → 引用块内的 emoji 段落
+              .replace(/^(>\s*)[-*+]\s+/gm, '$1• ')
+              // 非引用块内的 checkbox → 普通列表
+              .replace(/^(\s*)[-*+]\s+\[[ /]\]\s+/gm, '$1- ')
+              .replace(/^(\s*)[-*+]\s+\[[xX]\]\s+/gm, '$1- ')
+              // GitHub 提示框标记 → 加粗文本
+              .replace(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/gm,
+                (_match, type) => `**${type}**`);
+            try {
+              ed.commands.insertContent(processed, {
+                contentType: 'markdown',
+              });
+            } catch (e) {
+              // 降级：拆段插入，跳过报错的段落
+              console.warn('[Markdown paste] 解析失败，尝试分段插入', e);
+              const paragraphs = processed.split(/\n\n+/);
+              for (const p of paragraphs) {
+                try {
+                  ed.commands.insertContent(p.trim() + '\n\n', {
+                    contentType: 'markdown',
+                  });
+                } catch {
+                  // 跳过报错段落，插入为纯文本
+                  ed.commands.insertContent(p.trim() + '\n\n');
+                }
+              }
+            }
           }
           return true;
         }

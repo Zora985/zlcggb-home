@@ -3,7 +3,8 @@
  * 用于编辑器粘贴时将 Markdown 文本转换为 HTML，再由 Tiptap parseHTML 安全渲染。
  * 
  * 支持：标题、加粗、斜体、删除线、行内代码、链接、图片、
- *       无序/有序列表、引用、代码围栏、表格、分割线、段落。
+ *       无序/有序列表、引用、GitHub 风格提示框、代码围栏（含 Mermaid）、
+ *       表格、分割线、段落。
  * 
  * 安全说明：生成的 HTML 不会直接插入 DOM（不使用 innerHTML/dangerouslySetInnerHTML），
  * 而是通过 Tiptap editor.commands.insertContent() 由 ProseMirror schema 安全解析。
@@ -90,6 +91,15 @@ function parseTable(lines: string[]): string {
   return html;
 }
 
+/** GitHub 风格提示框类型映射 */
+const ALERT_LABELS: Record<string, { emoji: string; label: string }> = {
+  'NOTE':      { emoji: 'ℹ️', label: '备注' },
+  'TIP':       { emoji: '💡', label: '提示' },
+  'IMPORTANT': { emoji: '❗', label: '重要' },
+  'WARNING':   { emoji: '⚠️', label: '警告' },
+  'CAUTION':   { emoji: '🔴', label: '注意' },
+};
+
 /** 主转换函数：Markdown 文本 → HTML 字符串 */
 export function markdownToHtml(md: string): string {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
@@ -110,9 +120,13 @@ export function markdownToHtml(md: string): string {
         i++;
       }
       i++; // 跳过结束的 ```
-      const langAttr = lang ? ` data-language="${escapeHtml(lang)}"` : '';
+
+      // 同时设置 pre[data-language] 和 code.language-xxx
+      // 前者供编辑器 Mermaid 预览使用，后者供 Tiptap CodeBlockLowlight 解析语言
+      const preAttr = lang ? ` data-language="${escapeHtml(lang)}"` : '';
+      const codeClass = lang ? ` class="language-${escapeHtml(lang)}"` : '';
       htmlParts.push(
-        `<pre${langAttr}><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`
+        `<pre${preAttr}><code${codeClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`
       );
       continue;
     }
@@ -146,15 +160,29 @@ export function markdownToHtml(md: string): string {
       continue;
     }
 
-    // ── 引用块 >
+    // ── 引用块 >（含 GitHub 风格提示框 [!NOTE] 等）
     if (/^>\s?/.test(line)) {
       const quoteLines: string[] = [];
       while (i < lines.length && /^>\s?/.test(lines[i])) {
         quoteLines.push(lines[i].replace(/^>\s?/, ''));
         i++;
       }
-      // 递归处理引用内容（支持引用中嵌套其他语法）
-      htmlParts.push(`<blockquote>${markdownToHtml(quoteLines.join('\n'))}</blockquote>`);
+
+      // 检测 GitHub 风格提示框：第一行是 [!TYPE]
+      const alertMatch = quoteLines[0]?.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/);
+      if (alertMatch) {
+        const alertType = alertMatch[1];
+        const alert = ALERT_LABELS[alertType];
+        // 移除 [!TYPE] 行，解析剩余内容
+        const contentLines = quoteLines.slice(1);
+        const innerHtml = markdownToHtml(contentLines.join('\n'));
+        htmlParts.push(
+          `<blockquote><p><strong>${alert.emoji} ${alert.label}</strong></p>${innerHtml}</blockquote>`
+        );
+      } else {
+        // 普通引用块，递归处理内容
+        htmlParts.push(`<blockquote>${markdownToHtml(quoteLines.join('\n'))}</blockquote>`);
+      }
       continue;
     }
 
