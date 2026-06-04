@@ -27,6 +27,7 @@ import {
 } from '../../lib/tutorialService';
 import type { Tutorial } from '../../lib/tutorialService';
 import LoginModal from './LoginModal';
+import { looksLikeMarkdown, markdownToHtml } from '../../utils/markdownPaste';
 
 const lowlight = createLowlight(common);
 
@@ -268,10 +269,12 @@ export default function TutorialEditor() {
       attributes: {
         class: 'outline-none min-h-[400px] pb-24',
       },
-      // 粘贴图片
+      // 粘贴：图片优先 → Markdown 文本检测 → 默认行为
       handlePaste: (_view, event) => {
         const items = event.clipboardData?.items;
         if (!items) return false;
+
+        // 1. 图片粘贴（最高优先级）
         for (const item of Array.from(items)) {
           if (item.type.startsWith('image/')) {
             event.preventDefault();
@@ -280,6 +283,25 @@ export default function TutorialEditor() {
             return true;
           }
         }
+
+        // 2. Markdown 文本粘贴检测
+        // 仅在剪贴板没有 HTML 格式时触发（避免从网页复制的富文本被重复处理）
+        const htmlData = event.clipboardData?.getData('text/html');
+        const plainText = event.clipboardData?.getData('text/plain');
+
+        if (plainText && !htmlData && looksLikeMarkdown(plainText)) {
+          event.preventDefault();
+          const html = markdownToHtml(plainText);
+          // 通过 Tiptap insertContent 安全插入，由各 extension 的 parseHTML 规则解析
+          const ed = editorInstanceRef.current;
+          if (ed) {
+            ed.commands.insertContent(html, {
+              parseOptions: { preserveWhitespace: false },
+            });
+          }
+          return true;
+        }
+
         return false;
       },
       // 拖拽图片
